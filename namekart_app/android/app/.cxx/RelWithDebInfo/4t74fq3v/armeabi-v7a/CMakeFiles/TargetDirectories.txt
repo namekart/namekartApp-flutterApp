@@ -1,0 +1,2 @@
+D:/Namekart Intership/namekart_app/namekart_app/android/app/.cxx/RelWithDebInfo/4t74fq3v/armeabi-v7a/CMakeFiles/edit_cache.dir
+D:/Namekart Intership/namekart_app/namekart_app/android/app/.cxx/RelWithDebInfo/4t74fq3v/armeabi-v7a/CMakeFiles/rebuild_cache.dir
