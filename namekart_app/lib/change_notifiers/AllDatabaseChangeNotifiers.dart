@@ -23,6 +23,16 @@ class LiveDatabaseChange extends ChangeNotifier {
       }
     }
   }
+
+}
+
+
+class NotifyRebuildChange extends ChangeNotifier {
+
+  void notifyRebuild() {
+    // If the updated path matches the current path, notify listeners
+    notifyRebuild();
+  }
 }
 
 class LiveListDatabaseChange extends ChangeNotifier {

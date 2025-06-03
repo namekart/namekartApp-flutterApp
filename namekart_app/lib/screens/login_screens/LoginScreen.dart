@@ -7,6 +7,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:haptic_feedback/haptic_feedback.dart';
 import 'package:namekart_app/activity_helpers/GlobalVariables.dart';
 import 'package:namekart_app/database/UserSettingsDatabase.dart';
 import 'package:http/http.dart' as http;
@@ -261,6 +262,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     onTap: () async {
                       if (username.isEmpty || password.isEmpty) {
                         _showSnackBar("❌ Please Enter UserId/Password");
+                        Haptics.vibrate(HapticsType.error);
                         return;
                       }
 
@@ -291,13 +293,18 @@ class _LoginScreenState extends State<LoginScreen> {
                           Future.delayed(Duration(seconds: 1), () {
                             Navigator.pushReplacementNamed(context, 'home',
                                 arguments: {"isAdmin": isAdmin});
+
+                            Haptics.vibrate(HapticsType.error);
+
                           });
                         } else {
                           _showSnackBar("❌ Wrong Username/Password");
+                          Haptics.vibrate(HapticsType.error);
                         }
                       } catch (e) {
                         setState(() => _isLoading = false);
                         _showSnackBar("❌ Server error, please try again later");
+                        Haptics.vibrate(HapticsType.error);
                         print(e);
                       }
                     },

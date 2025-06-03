@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 
@@ -13,7 +15,6 @@ class CustomShimmer extends StatefulWidget {
   final BorderRadius? borderRadius;
   final double opacity;
 
-
   const CustomShimmer({
     super.key,
     required this.child,
@@ -23,7 +24,7 @@ class CustomShimmer extends StatefulWidget {
     this.loop = 0,
     this.enabled = true,
     this.borderRadius,
-    this.opacity=1
+    this.opacity = 1,
   });
 
   CustomShimmer.fromColors({
@@ -36,8 +37,7 @@ class CustomShimmer extends StatefulWidget {
     this.loop = 0,
     this.enabled = true,
     this.borderRadius,
-    this.opacity=1
-
+    this.opacity = 1,
   }) : gradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.centerRight,
@@ -98,6 +98,7 @@ class _CustomShimmerState extends State<CustomShimmer> with SingleTickerProvider
         direction: widget.direction,
         gradient: widget.gradient,
         percent: _controller.value,
+        borderRadius: widget.borderRadius,
       ),
     );
   }
@@ -113,17 +114,19 @@ class _CustomShimmerEffect extends SingleChildRenderObjectWidget {
   final double percent;
   final CustomShimmerDirection direction;
   final Gradient gradient;
+  final BorderRadius? borderRadius;
 
   const _CustomShimmerEffect({
     Widget? child,
     required this.percent,
     required this.direction,
     required this.gradient,
+    this.borderRadius,
   }) : super(child: child);
 
   @override
   _CustomShimmerRenderObject createRenderObject(BuildContext context) {
-    return _CustomShimmerRenderObject(percent, direction, gradient);
+    return _CustomShimmerRenderObject(percent, direction, gradient, borderRadius);
   }
 
   @override
@@ -131,7 +134,8 @@ class _CustomShimmerEffect extends SingleChildRenderObjectWidget {
     CustomShimmer
       ..percent = percent
       ..gradient = gradient
-      ..direction = direction;
+      ..direction = direction
+      ..borderRadius = borderRadius;
   }
 }
 
@@ -139,8 +143,9 @@ class _CustomShimmerRenderObject extends RenderProxyBox {
   CustomShimmerDirection _direction;
   Gradient _gradient;
   double _percent;
+  BorderRadius? _borderRadius;
 
-  _CustomShimmerRenderObject(this._percent, this._direction, this._gradient);
+  _CustomShimmerRenderObject(this._percent, this._direction, this._gradient, this._borderRadius);
 
   @override
   ShaderMaskLayer? get layer => super.layer as ShaderMaskLayer?;
@@ -166,6 +171,13 @@ class _CustomShimmerRenderObject extends RenderProxyBox {
     if (newDirection != _direction) {
       _direction = newDirection;
       markNeedsLayout();
+    }
+  }
+
+  set borderRadius(BorderRadius? newBorderRadius) {
+    if (newBorderRadius != _borderRadius) {
+      _borderRadius = newBorderRadius;
+      markNeedsPaint();
     }
   }
 
@@ -197,11 +209,24 @@ class _CustomShimmerRenderObject extends RenderProxyBox {
         rect = Rect.fromLTWH(dx - width, dy, 3 * width, height);
       }
 
-      layer ??= ShaderMaskLayer();
-      layer!
-        ..shader = _gradient.createShader(rect)
-        ..maskRect = offset & size
-        ..blendMode = BlendMode.overlay; // CHANGED: Allows original colors to be visible
+      if (_borderRadius != null) {
+        layer ??= ShaderMaskLayer();
+        layer!
+          ..shader = _gradient.createShader(rect)
+          ..maskRect = Rect.fromLTWH(
+            offset.dx,
+            offset.dy,
+            width,
+            height,
+          )
+          ..blendMode = BlendMode.overlay;
+      } else {
+        layer ??= ShaderMaskLayer();
+        layer!
+          ..shader = _gradient.createShader(rect)
+          ..maskRect = offset & size
+          ..blendMode = BlendMode.overlay;
+      }
 
       context.pushLayer(layer!, super.paint, offset);
     } else {

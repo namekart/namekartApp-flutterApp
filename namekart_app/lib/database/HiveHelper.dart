@@ -17,7 +17,7 @@ class HiveHelper {
     _box.put(rootKey, root);
   }
 
-  static Future<String> add(String path, String id, Map<String, dynamic> info) async {
+  static Future<String> addDataToHive(String path, String id, Map<String, dynamic> info) async {
     final parts = path.split('~').where((p) => p.isNotEmpty).toList();
 
     if (parts.isEmpty && path.isNotEmpty) {
@@ -60,7 +60,7 @@ class HiveHelper {
     return usedKey;
   }
 
-  static Future<String> update(String path, String id, Map<String, dynamic> info) async {
+  static Future<String> updateDataOfHive(String path, String id, Map<String, dynamic> info) async {
     final parts = path.split('~').where((p) => p.isNotEmpty).toList();
 
     if (parts.isEmpty && path.isNotEmpty) {
@@ -207,12 +207,14 @@ class HiveHelper {
     if (data is! Map<String, dynamic>) return [];
 
 
+
     final matchedItems = <Map<String, dynamic>>[];
 
     data.forEach((key, value) {
       if (value.containsKey('datetime')) {
         try {
           final entryDateOnly = value['datetime'];
+
 
           if (entryDateOnly.toString().contains(targetDate)) {
             matchedItems.add(Map<String, dynamic>.from(value));
@@ -470,6 +472,111 @@ class HiveHelper {
     } catch (e) {
       print("❌ Error reading Hive box '$path': $e");
       return -1; // Fallback: assume not found
+    }
+  }
+
+
+  /// Return all entries with `ringalarm == true` and their full paths
+  static List<String> getAllAvailablePaths({int maxDepth = 4}) {
+    final root = _getRoot();
+    final List<String> paths = [];
+
+    void traverse(dynamic node, String currentPath, int currentDepth) {
+      if (node is Map && currentDepth < maxDepth) {
+        node.forEach((key, value) {
+          String newPath = currentPath.isEmpty ? key.toString() : '$currentPath~$key';
+          traverse(value, newPath, currentDepth + 1);
+        });
+      } else {
+        // Stop here either because not a Map or maxDepth reached
+        if (currentPath.isNotEmpty) {
+          paths.add(currentPath);
+        }
+      }
+    }
+
+    traverse(root, '', 0);
+    return paths;
+  }
+
+
+  static List<String> getRingAlarmPaths() {
+    final root = _getRoot();
+    final List<String> ringAlarmPaths = [];
+
+    void traverse(dynamic node, String currentPath) {
+      if (node is Map) {
+        node.forEach((key, value) {
+          String newPath = currentPath.isEmpty ? key.toString() : '$currentPath~$key';
+
+          // If we find a device_notification array, scan it for ringAlarm
+          if (key == 'device_notification' && value is List) {
+            for (int i = 0; i < value.length; i++) {
+              var item = value[i];
+              if (item is Map && item.containsKey('ringAlarm')) {
+                var ringValue = item['ringAlarm'];
+                // Check if ringAlarm is true (string "true" or bool true)
+                if (ringValue == true || ringValue == 'true') {
+                  ringAlarmPaths.add('$newPath~$i~ringAlarm');
+                }
+              }
+            }
+          }
+
+          // Recursively traverse deeper if value is Map or List
+          if (value is Map || value is List) {
+            traverse(value, newPath);
+          }
+        });
+      } else if (node is List) {
+        for (int i = 0; i < node.length; i++) {
+          var item = node[i];
+          String newPath = '$currentPath~$i';
+          if (item is Map || item is List) {
+            traverse(item, newPath);
+          }
+        }
+      }
+    }
+
+    traverse(root, '');
+    return ringAlarmPaths;
+  }
+
+
+
+
+
+
+
+
+
+  /// Set ringalarm = false for the specified full path
+  static Future<void> disableRingAlarm(String fullPath) async {
+    final parts = fullPath.split('~').where((p) => p.isNotEmpty).toList();
+
+    if (parts.length < 2) return;
+
+    final root = _getRoot();
+    dynamic node = root;
+
+    for (int i = 0; i < parts.length - 1; i++) {
+      final part = parts[i];
+      if (node is Map && node.containsKey(part)) {
+        node[part] = Map<String, dynamic>.from(node[part]);
+        node = node[part];
+      } else {
+        return;
+      }
+    }
+
+    final lastPart = parts.last;
+
+    if (node is Map && node.containsKey(lastPart)) {
+      final item = Map<String, dynamic>.from(node[lastPart]);
+      item['ringalarm'] = false;
+      node[lastPart] = item;
+      _saveRoot(root);
     }
   }
 

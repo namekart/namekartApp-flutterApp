@@ -7,10 +7,16 @@ import android.util.Log
 
 class NotificationActionReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        val action = intent.action
-        when (action) {
-            "ACCEPT_ACTION" -> Log.d("FCM", "Accept button clicked")
-            "REJECT_ACTION" -> Log.d("FCM", "Reject button clicked")
+        when (intent.action) {
+            "FORCE_STOP_ALARM" -> {
+                try {
+                    MyFirebaseMessagingService.ringtone?.stop()
+                    MyFirebaseMessagingService.ringtone = null
+                    Log.d("FCM", "🛑 Alarm stopped from notification action")
+                } catch (e: Exception) {
+                    Log.e("FCM", "Error stopping ringtone: ${e.message}")
+                }
+            }
         }
     }
 }

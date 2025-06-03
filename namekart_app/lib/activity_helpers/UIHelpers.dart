@@ -4,13 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bounceable/flutter_bounceable.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:haptic_feedback/haptic_feedback.dart';
 import 'package:intl/intl.dart';
 import 'package:top_snackbar_flutter/custom_snack_bar.dart';
 import 'package:top_snackbar_flutter/top_snack_bar.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../change_notifiers/WebSocketService.dart';
-import '../cutsom_widget/SuperAnimatedWidget/SuperAnimatedWidget.dart';
+import '../cutsom_widget/SuperAnimatedWidget.dart';
 import '../database/HiveHelper.dart';
 import 'GlobalVariables.dart';
 
@@ -113,14 +114,16 @@ Future<void> launchInBrowser(String url) async {
   }
 }
 
-Future<void> dynamicDialog(BuildContext context, buttonData,String collectionName,String documentId,int bubbleButtonIndex,String bubbleButtonName) async {
+
+void haptic()async{
+  await Haptics.vibrate(HapticsType.success);
+}
+
+Future<void> dynamicDialog(BuildContext context, buttonData,String collectionName,String documentId,int bubbleButtonIndex,String bubbleButtonName,String buttonType,String buttonDomainName) async {
   var buttonOnClickData = buttonData['onclick'];
-  print(buttonOnClickData);
 
 
-  if (buttonOnClickData.keys
-      .toString()
-      .contains("text")) {
+  if (buttonOnClickData.keys.toString().contains("text")) {
     var buttonOnClickDataList =
     buttonOnClickData['text'];
     var buttonOnClickDataListKeys =
@@ -155,7 +158,7 @@ Future<void> dynamicDialog(BuildContext context, buttonData,String collectionNam
                               buttonData[
                               'button_text'],
                               style: GoogleFonts.poppins(
-                                  fontSize: 8,
+                                  fontSize: 10,
                                   color: Colors.white,
                                   fontWeight: FontWeight.bold),
                             ),
@@ -187,7 +190,7 @@ Future<void> dynamicDialog(BuildContext context, buttonData,String collectionNam
                                           itemBuilder: (context, buttonOnClickDataListindex) {
                                             return Padding(
                                               padding: const EdgeInsets.all(5),
-                                              child: Text(buttonOnClickDataList[buttonOnClickDataListKeys[buttonOnClickDataListindex]], style: (buttonOnClickDataList[buttonOnClickDataListindex] == "h1") ? GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xffB71C1C)) : GoogleFonts.poppins(fontSize: 8, fontWeight: FontWeight.bold, color: Colors.black54)),
+                                              child: Text(buttonOnClickDataList[buttonOnClickDataListKeys[buttonOnClickDataListindex]], style: (buttonOnClickDataList[buttonOnClickDataListindex] == "h1") ? GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xffB71C1C)) : GoogleFonts.poppins(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.black54)),
                                             );
                                           }),
                                     ),
@@ -199,10 +202,7 @@ Future<void> dynamicDialog(BuildContext context, buttonData,String collectionNam
     },
     );
   }
-  else if (buttonOnClickData
-      .keys
-      .toString()
-      .contains('url')) {
+  else if (buttonOnClickData.keys.toString().contains('url')) {
     var urlList = buttonOnClickData['url'];
 
     if(urlList.length==1){
@@ -237,7 +237,7 @@ Future<void> dynamicDialog(BuildContext context, buttonData,String collectionNam
                                 buttonData[
                                 'button_text'],
                                 style: GoogleFonts.poppins(
-                                    fontSize: 8,
+                                    fontSize: 10,
                                     color: Colors.white,
                                     fontWeight: FontWeight.bold),
                               ),
@@ -291,7 +291,7 @@ Future<void> dynamicDialog(BuildContext context, buttonData,String collectionNam
                                             Text(
                                               urlList.keys.toList()[urlButtonIndex],
                                               style: GoogleFonts.poppins(
-                                                fontSize: 8,
+                                                fontSize: 10,
                                                 fontWeight:
                                                 FontWeight.bold,
                                                 color: Colors.black54,
@@ -312,25 +312,51 @@ Future<void> dynamicDialog(BuildContext context, buttonData,String collectionNam
       });
     }
   }
-  else if (buttonOnClickData.toString().contains("sendtoserver")){
+  else if (buttonOnClickData.toString().contains("send-to-server-get-dialog")){
     WebSocketService websocketService=new WebSocketService();
 
     String calledDocumentPath="live~$collectionName~auctions~$documentId";
 
     Map<String,String> a={
-      "sendtoserver":buttonOnClickData['sendtoserver'],
+      "send-to-server-get-dialog":buttonOnClickData['send-to-server-get-dialog'],
       "calledDocumentPath":calledDocumentPath,
       "calledDocumentPathFields":"uiButtons[$bubbleButtonIndex].$bubbleButtonName.onclick",
-      "type":"stats"
+      "type":buttonType.toLowerCase()
     };
 
     //sending response to server imp
     await websocketService.sendMessageGetResponse(a,"broadcast");
 
-    dynamicDialog(context, HiveHelper.read(calledDocumentPath)['uiButtons'][bubbleButtonIndex][bubbleButtonName],collectionName,documentId,bubbleButtonIndex,bubbleButtonName);
+    dynamicDialog(context, HiveHelper.read(calledDocumentPath)['uiButtons'][bubbleButtonIndex][bubbleButtonName],collectionName,documentId,bubbleButtonIndex,bubbleButtonName,buttonType,buttonDomainName);
+  }
+  else if (buttonOnClickData.toString().contains("send-to-server-get-snackbar")){
+    WebSocketService websocketService=new WebSocketService();
+
+    String calledDocumentPath="live~$collectionName~auctions~$documentId";
 
 
+    Map<String,String> a={
+      "send-to-server-get-snackbar":buttonOnClickData['send-to-server-get-snackbar'],
+      "calledDocumentPath":calledDocumentPath,
+      "calledDocumentPathFields":"uiButtons[$bubbleButtonIndex].$bubbleButtonName.onclick",
+      "type":buttonType.toLowerCase()
+    };
 
+    //sending response to server imp
+    await websocketService.sendMessageGetResponse(a,"broadcast");
+
+    if(!buttonType.contains("Bid")) {
+      dynamicDialog(
+          context,
+          HiveHelper.read(
+              calledDocumentPath)['uiButtons'][bubbleButtonIndex][bubbleButtonName],
+          collectionName,
+          documentId,
+          bubbleButtonIndex,
+          bubbleButtonName,
+          buttonType,
+          buttonDomainName);
+    }
 
   }
   else if(buttonOnClickData.toString().contains("openinputbox")){
@@ -352,7 +378,7 @@ Future<void> dynamicDialog(BuildContext context, buttonData,String collectionNam
                           title: Text(
                             "Enter Input",
                             style: GoogleFonts.poppins(
-                                fontSize: 8,
+                                fontSize: 10,
                                 color: Colors.white,
                                 fontWeight: FontWeight.bold),
                           ),
@@ -381,7 +407,7 @@ Future<void> dynamicDialog(BuildContext context, buttonData,String collectionNam
                                   fontWeight:
                                   FontWeight.bold,
                                   color: Colors.black45,
-                                  fontSize: 8.sp,
+                                  fontSize: 10.sp,
                                   decoration:
                                   TextDecoration.none,
                                 ),
@@ -395,7 +421,7 @@ Future<void> dynamicDialog(BuildContext context, buttonData,String collectionNam
                                       fontWeight:
                                       FontWeight.bold,
                                       color: Colors.black45,
-                                      fontSize: 8.sp,
+                                      fontSize: 10.sp,
                                       decoration:
                                       TextDecoration
                                           .none,
@@ -427,7 +453,7 @@ Future<void> dynamicDialog(BuildContext context, buttonData,String collectionNam
                                           style: GoogleFonts.poppins(
                                               color: Colors.black,
                                               fontWeight: FontWeight.bold,
-                                              fontSize: 8)),
+                                              fontSize: 10)),
                                     ),
                                   ),
                                 ),]
@@ -439,6 +465,16 @@ Future<void> dynamicDialog(BuildContext context, buttonData,String collectionNam
               )
           );
         }
+    );
+  }
+  else if(buttonOnClickData.toString().contains("showSnackbar")){
+    showTopSnackBar(
+      Overlay.of(context),
+      displayDuration: Duration(milliseconds: 100),
+      animationDuration: Duration(seconds: 1),
+      CustomSnackBar.success(
+        message: "\"$buttonDomainName $documentId\" ${buttonOnClickData['showSnackbar']['message']}",
+      ),
     );
   }
 }

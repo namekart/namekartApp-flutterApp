@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:haptic_feedback/haptic_feedback.dart';
 import 'package:intl/intl.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -154,6 +155,7 @@ class _CalendarSliderState extends State<CalendarSlider> {
                         widget.onDateSelected(_selectedDate);
                         _scrollToSelectedMonth();
                         _scrollToSelectedDate();
+                        Haptics.vibrate(HapticsType.success);
                       });
                     },
                     child: AnimatedContainer(
@@ -220,6 +222,8 @@ class _CalendarSliderState extends State<CalendarSlider> {
                         _selectedDate = date;
                         widget.onDateSelected(_selectedDate);
                         _scrollToSelectedDate();
+
+                        Haptics.vibrate(HapticsType.success);
                       });
                     },
                     child: AnimatedContainer(

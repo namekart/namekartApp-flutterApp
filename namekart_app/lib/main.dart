@@ -16,9 +16,8 @@ import 'package:namekart_app/screens/login_screens/LoginScreen.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 
-import 'change_notifiers/ConnectivityService.dart';
-import 'change_notifiers/SnackbarManager.dart';
 import 'change_notifiers/WebSocketService.dart';
+import 'cutsom_widget/customSyncWidget.dart';
 
 
 void main() async {
@@ -39,8 +38,6 @@ void main() async {
   runApp(
     MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (context) => SnackbarManager()),
-        ChangeNotifierProvider(create: (context) => ConnectivityService()),
         ChangeNotifierProvider(create: (context) => WebSocketService()),
         ChangeNotifierProvider(create: (context) => LiveDatabaseChange()),
         ChangeNotifierProvider(create: (context) => LiveListDatabaseChange()),
@@ -48,6 +45,7 @@ void main() async {
         ChangeNotifierProvider(create: (context) => NewNotificationTableAddNotifier()),
         ChangeNotifierProvider(create: (context) => DatabaseDataUpdatedNotifier()),
         ChangeNotifierProvider(create: (context) => RebuildNotifier()),
+        ChangeNotifierProvider(create: (context) => NotifyRebuildChange()),
       ],
       child: MyApp(),
     ),
@@ -78,24 +76,24 @@ class MyApp extends StatelessWidget {
     WebSocketService.onBroadcastMessage.listen((onData){
       print("ondata $onData");
     });
-
-    final connectivityService = Provider.of<ConnectivityService>(context);
-    final snackbarService = Provider.of<SnackbarManager>(context);
-      return ScreenUtilInit(
-      designSize: const Size(360, 690),
-      builder: (context, child) => MaterialApp(
-        initialRoute: '/',
-        routes: {
-          'home': (context) => HomeScreen(),
-        },
-        title: 'Flutter Demo',
-        theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-          useMaterial3: true,
+    return AlertWidget(
+      onReconnectSuccess:(){},
+      path: '',
+      child: ScreenUtilInit(
+        designSize: const Size(360, 690),
+        builder: (context, child) => MaterialApp(
+          initialRoute: '/',
+          routes: {
+            'home': (context) => HomeScreen(),
+          },
+          title: 'Flutter Demo',
+          theme: ThemeData(
+            colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+            useMaterial3: true,
+          ),
+          debugShowCheckedModeBanner: false,
+          home: LoginScreen(),
         ),
-        debugShowCheckedModeBanner: false,
-        scaffoldMessengerKey: Provider.of<SnackbarManager>(context).scaffoldMessengerKey,
-        home: LoginScreen(),
       ),
     );
   }

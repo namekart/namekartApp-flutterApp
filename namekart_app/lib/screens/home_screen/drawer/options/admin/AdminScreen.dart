@@ -17,6 +17,8 @@ class _AdminScreenState extends State<AdminScreen> {
     // TODO: implement build
     return Scaffold(
       appBar: AppBar(
+        shadowColor: Colors.black,
+        elevation: 5,
         iconTheme: const IconThemeData(color: Colors.white, size: 20),
         actions: [
           Container(
@@ -25,16 +27,15 @@ class _AdminScreenState extends State<AdminScreen> {
             color: Colors.black12,
           ),
           IconButton(
-              onPressed: () {},
-              icon: const Icon(Icons.admin_panel_settings)
-          ),
+              onPressed: () {}, icon: const Icon(Icons.admin_panel_settings)),
           Container(
             width: 60,
             height: 50,
             alignment: Alignment.centerRight,
-            decoration: BoxDecoration(color: Color(0xff3DB070),
-                borderRadius: BorderRadius.only(
-                    bottomLeft: Radius.circular(100))),
+            decoration: BoxDecoration(
+              color: Color(0xff3DB070),
+              borderRadius: BorderRadius.only(bottomLeft: Radius.circular(100)),
+            ),
             child: Padding(
               padding: const EdgeInsets.only(right: 5, bottom: 5),
               child: Text("Admin",
@@ -72,12 +73,15 @@ class _AdminScreenState extends State<AdminScreen> {
                 context,
                 PageRouteBuilder(
                   transitionDuration: Duration(milliseconds: 300),
-                  pageBuilder: (context, animation, secondaryAnimation) => FirestoreInfo(),
-                  transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                  pageBuilder: (context, animation, secondaryAnimation) =>
+                      FirestoreInfo(),
+                  transitionsBuilder:
+                      (context, animation, secondaryAnimation, child) {
                     return FadeTransition(
                       opacity: animation,
                       child: SlideTransition(
-                        position: Tween<Offset>(begin: Offset(1, 0), end: Offset(0, 0))
+                        position: Tween<Offset>(
+                                begin: Offset(1, 0), end: Offset(0, 0))
                             .animate(animation),
                         child: child,
                       ),
@@ -89,12 +93,13 @@ class _AdminScreenState extends State<AdminScreen> {
             child: Padding(
               padding: const EdgeInsets.only(left: 20, right: 20, top: 15),
               child: Container(
-                width: MediaQuery
-                    .of(context)
-                    .size
-                    .width,
-                decoration: BoxDecoration(color: Color(0xffF5F5F5),
-                    borderRadius: BorderRadius.all(Radius.circular(10))),
+                width: MediaQuery.of(context).size.width,
+                decoration: BoxDecoration(
+                    color: Color(0xffF5F5F5),
+                    borderRadius: BorderRadius.all(Radius.circular(30)),
+                    boxShadow: [
+                      BoxShadow(color: Colors.black12, blurRadius: 10)
+                    ]),
                 child: Padding(
                   padding: const EdgeInsets.only(left: 25, right: 25),
                   child: Row(
@@ -105,10 +110,11 @@ class _AdminScreenState extends State<AdminScreen> {
                               fontWeight: FontWeight.bold,
                               fontSize: 14.sp,
                               color: Color(0xffB71C1C))),
-
                       Image.asset(
                         "assets/images/home_screen_images/drawer/options/admin/firestorelogo.png",
-                        width: 150, height: 150,)
+                        width: 150,
+                        height: 150,
+                      )
                     ],
                   ),
                 ),
@@ -121,12 +127,15 @@ class _AdminScreenState extends State<AdminScreen> {
                 context,
                 PageRouteBuilder(
                   transitionDuration: Duration(milliseconds: 300),
-                  pageBuilder: (context, animation, secondaryAnimation) => UserAccountDetailsScreen(),
-                  transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                  pageBuilder: (context, animation, secondaryAnimation) =>
+                      UserAccountDetailsScreen(),
+                  transitionsBuilder:
+                      (context, animation, secondaryAnimation, child) {
                     return FadeTransition(
                       opacity: animation,
                       child: SlideTransition(
-                        position: Tween<Offset>(begin: Offset(1, 0), end: Offset(0, 0))
+                        position: Tween<Offset>(
+                                begin: Offset(1, 0), end: Offset(0, 0))
                             .animate(animation),
                         child: child,
                       ),
@@ -136,14 +145,15 @@ class _AdminScreenState extends State<AdminScreen> {
               );
             },
             child: Padding(
-              padding: const EdgeInsets.only(left: 20, right: 20, top: 15),
+              padding: const EdgeInsets.only(left: 20, right: 20, top: 20),
               child: Container(
-                width: MediaQuery
-                    .of(context)
-                    .size
-                    .width,
-                decoration: BoxDecoration(color: Color(0xffF5F5F5),
-                    borderRadius: BorderRadius.all(Radius.circular(10))),
+                width: MediaQuery.of(context).size.width,
+                decoration: BoxDecoration(
+                    color: Color(0xffF5F5F5),
+                    borderRadius: BorderRadius.all(Radius.circular(30)),
+                    boxShadow: [
+                      BoxShadow(color: Colors.black12, blurRadius: 10)
+                    ]),
                 child: Padding(
                   padding: const EdgeInsets.only(left: 25, right: 25),
                   child: Row(
@@ -151,7 +161,9 @@ class _AdminScreenState extends State<AdminScreen> {
                     children: [
                       Image.asset(
                         "assets/images/home_screen_images/drawer/options/admin/accountdetails.png",
-                        width: 100, height: 150,),
+                        width: 100,
+                        height: 150,
+                      ),
                       Text("User Account\nDetails",
                           style: GoogleFonts.poppins(
                               fontWeight: FontWeight.bold,

@@ -161,7 +161,7 @@ Future<void> getFullDatabaseForPath(String path) async {
       }
 
       try {
-        await HiveHelper.add(path, docId, data);
+        await HiveHelper.addDataToHive(path, docId, data);
         print("✅ Synced ID $docId to Hive from $path.");
       } catch (e) {
         print("⚠️ Failed to add ID $docId to Hive: $e");
@@ -175,7 +175,7 @@ Future<void> getFullDatabaseForPath(String path) async {
 }
 
 
-Future<bool> syncFirestoreFromDocIdRange(String path, int startingId, int endingId) async {
+Future<bool> syncFirestoreFromDocIdRange(String path, int startingId, int endingId,bool update) async {
   try {
     final collectionPath = path.replaceAll("~", "/");
 
@@ -205,7 +205,11 @@ Future<bool> syncFirestoreFromDocIdRange(String path, int startingId, int ending
       final data = doc.data();
 
       try {
-        await HiveHelper.add(path, docIdStr, data);
+        if(update){
+          await HiveHelper.updateDataOfHive(path, docIdStr, data);
+        }else{
+        await HiveHelper.addDataToHive(path, docIdStr, data);
+        }
         print("✅ Synced doc ID $docIdStr to Hive from $path.");
       } catch (e) {
         print("⚠️ Failed to add doc ID $docIdStr to Hive: $e");

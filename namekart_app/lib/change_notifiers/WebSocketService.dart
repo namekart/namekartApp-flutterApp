@@ -3,12 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:namekart_app/change_notifiers/AllDatabaseChangeNotifiers.dart';
 import 'package:namekart_app/database/HiveHelper.dart';
-import 'package:namekart_app/database/LiveAuctionsDatabase.dart';
-import 'package:provider/provider.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
-
-import '../database/LiveAuctionsListDatabase.dart';
-import '../database/NotificationDatabase.dart';
 
 class WebSocketService with ChangeNotifier {
   static late WebSocketChannel _channel;
@@ -33,7 +28,8 @@ class WebSocketService with ChangeNotifier {
       LiveListDatabaseChange liveListDatabaseChange,
       NotificationDatabaseChange notificationDatabaseChange,
       NewNotificationTableAddNotifier newNotificationTableAddNotifier,
-      DatabaseDataUpdatedNotifier databaseDataUpdatedNotifier) async {
+      DatabaseDataUpdatedNotifier databaseDataUpdatedNotifier,
+      NotifyRebuildChange notifyRebuildChange) async {
     if (userId.isEmpty) {
       print("User ID is required to connect.");
       return;
@@ -63,15 +59,17 @@ class WebSocketService with ChangeNotifier {
           if (jsonMessage["type"] == "broadcast") {
             Map<String, dynamic> data = jsonDecode(jsonMessage["data"]);
             String path = jsonMessage["path"];
-            print(path);
-            HiveHelper.add(path, data['id'].toString(),data);
+
+            HiveHelper.addDataToHive(path, data['id'].toString(),data);
 
             if(path.contains("live")) {
               liveDatabaseChange.notifyLiveDatabaseChange(path);
+              notifyRebuildChange.notifyRebuild();
 
-              HiveHelper.add("live~all~auctions", data['id'].toString(), data);
+              HiveHelper.addDataToHive("live~all~auctions", data['id'].toString(), data);
             }else if(path.contains("notifications")){
               liveDatabaseChange.notifyLiveDatabaseChange(path);
+              notifyRebuildChange.notifyRebuild();
               notificationDatabaseChange.notifyNotificationDatabaseChange();
             }
           }
@@ -79,7 +77,7 @@ class WebSocketService with ChangeNotifier {
             _broadcastController.add(message);
             Map<String, dynamic> data = jsonDecode(jsonMessage["data"]);
             String path = jsonMessage["path"];
-            HiveHelper.update(path, data['id'].toString(),data);
+            HiveHelper.updateDataOfHive(path, data['id'].toString(),data);
             databaseDataUpdatedNotifier.notifyDatabaseDataUpdated(path);
 
           }

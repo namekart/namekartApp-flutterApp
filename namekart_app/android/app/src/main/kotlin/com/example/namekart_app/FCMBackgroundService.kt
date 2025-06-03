@@ -2,14 +2,11 @@ package com.example.namekart_app
 
 import android.app.NotificationChannel
 import android.app.NotificationManager
-import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
 import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
-import com.google.firebase.messaging.FirebaseMessagingService
-import com.google.firebase.messaging.RemoteMessage
 
 class FCMBackgroundService : Service() {
 
@@ -19,7 +16,9 @@ class FCMBackgroundService : Service() {
                 "fcm_background_channel",
                 "FCM Background Service",
                 NotificationManager.IMPORTANCE_DEFAULT
-            ).apply { setShowBadge(false) }
+            ).apply {
+                setShowBadge(false)
+            }
             val manager = getSystemService(NotificationManager::class.java)
             manager.createNotificationChannel(channel)
 
@@ -31,16 +30,10 @@ class FCMBackgroundService : Service() {
 
             startForeground(1, notification)
         }
-
-        // Simulate FCM handling (this would typically be in MyFirebaseMessagingService)
-        FirebaseMessagingService().onMessageReceived(RemoteMessage(null)) // Placeholder
-
         return START_STICKY
     }
 
-    override fun onBind(intent: Intent?): IBinder? {
-        return null
-    }
+    override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onDestroy() {
         stopForeground(true)

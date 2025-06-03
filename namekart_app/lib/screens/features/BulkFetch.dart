@@ -3,7 +3,13 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:haptic_feedback/haptic_feedback.dart';
 import 'package:http/http.dart' as http;
+import 'package:namekart_app/cutsom_widget/CustomShimmer.dart';
+import 'package:namekart_app/cutsom_widget/SuperAnimatedWidget.dart';
+import 'package:shimmer/shimmer.dart';
+import '../../cutsom_widget/AnimatedAvatarIcon.dart';
+import '../../cutsom_widget/AutoAnimatedContainerWidget.dart';
 import '../../storageClasses/Auctions.dart';
 import 'BulkFetchListScreen.dart';
 
@@ -21,6 +27,10 @@ class _BulkFetchState extends State<BulkFetch> {
   void initState() {
     super.initState();
     domainFields.add(DomainField());
+
+    Future.delayed(Duration(milliseconds: 600), () {
+      Haptics.vibrate(HapticsType.success);
+    });
   }
 
   void addNewField() {
@@ -28,6 +38,10 @@ class _BulkFetchState extends State<BulkFetch> {
       domainFields.add(DomainField());
     });
     _listKey.currentState?.insertItem(domainFields.length - 1);
+
+    Future.delayed(Duration(milliseconds: 600), () {
+      Haptics.vibrate(HapticsType.success);
+    });
   }
 
   void removeField(int index) {
@@ -40,6 +54,9 @@ class _BulkFetchState extends State<BulkFetch> {
           (context, animation) => _buildItem(removedItem, index, animation),
       duration: const Duration(milliseconds: 300),
     );
+
+    Haptics.vibrate(HapticsType.error);
+
   }
 
   Future<List<Auctions>> fetchAuctions(List<SearchQuery> queries) async {
@@ -61,136 +78,139 @@ class _BulkFetchState extends State<BulkFetch> {
   }
 
   Widget _buildItem(DomainField domainField, int index, Animation<double> animation) {
-    return SizeTransition(
-      sizeFactor: animation,
-      child: Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: Card(
-          margin: const EdgeInsets.symmetric(vertical: 16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24),
-          ),
-          color: Color(0xFFF3F3F3), // Slight transparency for premium look
-          child: Padding(
-            padding: const EdgeInsets.all(10),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Platform Dropdown
-                Row(
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.all(10),
-                      child: Opacity(
-                          opacity: 0.5,
-                          child: Image.asset("assets/images/auctionsimages/bulkfetch.png",width: 50.sp,height: 50.sp,)),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.only(left: 10),
-                      child: Container(
-                        width: 150.sp,
-                        height: 40.sp,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(16),
-                          color: Color(0xffB71C1C),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.05),
-                              blurRadius: 10,
-                              offset: Offset(0, 5),
-                            ),
-                          ],
-                        ),
-                        child: InkWell(
-                          onTap: () {
-                            _showCustomDropdown(domainField, index);
-                          },
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 20),
-                            child: Row(
-                              children: [
-                                Image.asset(
-                                  'assets/images/home_screen_images/livelogos/${domainField.selectedPlatform.toLowerCase()}.png',
-                                  width: 15,
-                                  height: 15,
-                                ),
-                                const SizedBox(width: 5),
-                                Padding(
-                                  padding: const EdgeInsets.only(left: 8.0),
-                                  child: Text(
-                                    domainField.selectedPlatform,
-                                    style: const TextStyle(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.white,
+    return SuperAnimatedWidget(
+      effects: const [AnimationEffect.fade,AnimationEffect.slide,AnimationEffect.scale],
+      child: SizeTransition(
+        sizeFactor: animation,
+        child: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Card(
+            margin: const EdgeInsets.symmetric(vertical: 16),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(24),
+            ),
+            color: Color(0xFFF3F3F3), // Slight transparency for premium look
+            child: Padding(
+              padding: const EdgeInsets.all(10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Platform Dropdown
+                  Row(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.all(10),
+                        child: Opacity(
+                            opacity: 0.5,
+                            child: Image.asset("assets/images/auctionsimages/bulkfetch.png",width: 50.sp,height: 50.sp,)),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.only(left: 10),
+                        child: Container(
+                          width: 150.sp,
+                          height: 40.sp,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(16),
+                            color: Color(0xffB71C1C),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.05),
+                                blurRadius: 10,
+                                offset: Offset(0, 5),
+                              ),
+                            ],
+                          ),
+                          child: InkWell(
+                            onTap: () {
+                              _showCustomDropdown(domainField, index);
+                            },
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 20),
+                              child: Row(
+                                children: [
+                                  Image.asset(
+                                    'assets/images/home_screen_images/livelogos/${domainField.selectedPlatform.toLowerCase()}.png',
+                                    width: 15,
+                                    height: 15,
+                                  ),
+                                  const SizedBox(width: 5),
+                                  Padding(
+                                    padding: const EdgeInsets.only(left: 8.0),
+                                    child: Text(
+                                      domainField.selectedPlatform,
+                                      style: const TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                      ),
                                     ),
                                   ),
-                                ),
-                                const Spacer(),
-                                Icon(Icons.arrow_drop_down, color: Colors.black87),
-                              ],
+                                  const Spacer(),
+                                  Icon(Icons.arrow_drop_down, color: Colors.black87),
+                                ],
+                              ),
                             ),
                           ),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                // Domain Name Input
-                Container(
-                  height: 45.sp,
-                  child: TextField(
-                    onChanged: (text) {
-                      domainFields[index].domainName = text;
-                    },
-                    decoration: InputDecoration(
-                      label:Text("Domain Name",style: GoogleFonts.poppins(
-                          color: Colors.black, fontWeight: FontWeight.bold,fontSize: 10),),
-                      filled: true,
-                      fillColor: Colors.black12,
-                      contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        borderSide: BorderSide.none,
-                      ),
-                    ),
-                    style: const TextStyle(color: Colors.black, fontSize: 10),
+                    ],
                   ),
-                ),
-                const SizedBox(height: 10),
-                // Add/Remove Button
-                Row(
-                  children: [
-                    Expanded(
-                      child: Padding(
-                        padding: EdgeInsets.only(left: 8,right: 8),
-                        child: Text(
-                          'Add More Domains',
-                          style: GoogleFonts.poppins(
-                              color: Color(0xffB71C1C),
-                              fontWeight: FontWeight.bold,
-                              fontSize: 10),
+                  const SizedBox(height: 10),
+                  // Domain Name Input
+                  Container(
+                    height: 45.sp,
+                    child: TextField(
+                      onChanged: (text) {
+                        domainFields[index].domainName = text;
+                      },
+                      decoration: InputDecoration(
+                        label:Text("Domain Name",style: GoogleFonts.poppins(
+                            color: Colors.black, fontWeight: FontWeight.bold,fontSize: 10),),
+                        filled: true,
+                        fillColor: Colors.black12,
+                        contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          borderSide: BorderSide.none,
                         ),
                       ),
+                      style: const TextStyle(color: Colors.black, fontSize: 10),
                     ),
-                    IconButton(
-                      icon: Icon(
-                        index == domainFields.length - 1 ? Icons.add_circle : Icons.remove_circle,
-                        color: index == domainFields.length - 1 ? Color(0xffB71C1C) : Color(0xffB71C1C),
-                        size: 20,
+                  ),
+                  const SizedBox(height: 10),
+                  // Add/Remove Button
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Padding(
+                          padding: EdgeInsets.only(left: 8,right: 8),
+                          child: Text(
+                            'Add More Domains',
+                            style: GoogleFonts.poppins(
+                                color: Color(0xffB71C1C),
+                                fontWeight: FontWeight.bold,
+                                fontSize: 10),
+                          ),
+                        ),
                       ),
-                      onPressed: () {
-                        if (index == domainFields.length - 1) {
-                          addNewField();
-                        } else {
-                          removeField(index);
-                        }
-                      },
-                    ),
-                  ],
-                ),
-              ],
+                      IconButton(
+                        icon: Icon(
+                          index == domainFields.length - 1 ? Icons.add_circle : Icons.remove_circle,
+                          color: index == domainFields.length - 1 ? Color(0xffB71C1C) : Color(0xffB71C1C),
+                          size: 20,
+                        ),
+                        onPressed: () {
+                          if (index == domainFields.length - 1) {
+                            addNewField();
+                          } else {
+                            removeField(index);
+                          }
+                        },
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -315,6 +335,8 @@ class _BulkFetchState extends State<BulkFetch> {
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
+        shadowColor: Colors.black,
+        elevation: 5,
         iconTheme: const IconThemeData(color: Colors.white, size: 20),
         actions: [
           Container(
@@ -322,23 +344,31 @@ class _BulkFetchState extends State<BulkFetch> {
             height: 25.sp,
             color: Colors.black12,
           ),
-          IconButton(
-            onPressed: () {
-              setState(() {});
-            },
-            icon: Image.asset(
-              "assets/images/home_screen_images/features/bulkbid.png",
-              width: 20.sp,
-              height: 20.sp,
+          AnimatedAvatarIcon(
+            animationType: AnimationType.flyUpLoop,
+            duration: Duration(seconds: 5),
+            child: IconButton(
+              onPressed: () {
+                setState(() {});
+              },
+              icon: Image.asset(
+                "assets/images/home_screen_images/features/bulkbid.png",
+                width: 20.sp,
+                height: 20.sp,
+              ),
             ),
           )
         ],
         actionsIconTheme: IconThemeData(color: Colors.white, size: 20),
-        title: Text("Bulk Fetch",
-            style: GoogleFonts.poppins(
-                fontWeight: FontWeight.bold,
-                fontSize: 14.sp,
-                color: Colors.white)),
+        title: Shimmer.fromColors(
+          baseColor:Colors.white,
+          highlightColor: Colors.black,
+          child: Text("Bulk Fetch",
+              style: GoogleFonts.poppins(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14.sp,
+                  color: Colors.white)),
+        ),
         titleSpacing: 0,
         toolbarHeight: 50,
         flexibleSpace: Container(
@@ -369,28 +399,32 @@ class _BulkFetchState extends State<BulkFetch> {
             const SizedBox(height: 20),
             // Submit Button
             Center(
-              child: Padding(
-                padding: const EdgeInsets.all(10),
-                child: Ink(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [Colors.deepPurpleAccent, Colors.indigoAccent],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
+              child:Shimmer.fromColors(
+                baseColor: Colors.white,
+                highlightColor: Colors.black,
+                child: Padding(
+                  padding: const EdgeInsets.all(10),
+                  child: Ink(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Colors.deepPurpleAccent, Colors.indigoAccent],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(32),
                     ),
-                    borderRadius: BorderRadius.circular(32),
-                  ),
-                  child: Container(
-                    alignment: Alignment.center,
-                    padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 50),
-                    child: isLoading
-                        ? const CircularProgressIndicator(color: Colors.white)
-                        : const Text(
-                      'Get Data',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
+                    child: Container(
+                      alignment: Alignment.center,
+                      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 50),
+                      child: isLoading
+                          ? const CircularProgressIndicator(color: Colors.white)
+                          : const Text(
+                        'Get Data',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
                       ),
                     ),
                   ),

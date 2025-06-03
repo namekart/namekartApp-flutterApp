@@ -5,10 +5,12 @@ import 'package:flutter_bounceable/flutter_bounceable.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:namekart_app/activity_helpers/GlobalFunctions.dart';
+import 'package:namekart_app/database/HiveHelper.dart';
 import 'package:top_snackbar_flutter/custom_snack_bar.dart';
 import 'package:top_snackbar_flutter/top_snack_bar.dart';
 
 import '../../../../../../activity_helpers/FirestoreHelper.dart';
+import '../../../../../../activity_helpers/UIHelpers.dart';
 
 class UserAccountDetailsScreen extends StatefulWidget {
   @override
@@ -23,11 +25,23 @@ class _UserAccountDetailsScreenState extends State<UserAccountDetailsScreen> {
   String email="",password="";
   bool isAdmin=false;
 
+  List<String> accountNames=[];
+
   @override
   void initState() {
     // TODO: implement initState
     _emailTextFieldController.addListener(_getEmail);
     _passwordTextFieldController.addListener(_getPassword);
+
+    assignAccountNames();
+
+  }
+
+  void assignAccountNames() async{
+    List<String> data=await getSubCollectionNames("accounts");
+    setState(() {
+    accountNames=data;
+    });
   }
 
   void _getEmail(){
@@ -49,6 +63,8 @@ class _UserAccountDetailsScreenState extends State<UserAccountDetailsScreen> {
     // TODO: implement build
     return Scaffold(
       appBar: AppBar(
+        shadowColor: Colors.black,
+        elevation: 5,
         iconTheme: const IconThemeData(color: Colors.white, size: 20),
         actions: [
           Container(
@@ -73,7 +89,7 @@ class _UserAccountDetailsScreenState extends State<UserAccountDetailsScreen> {
                           backgroundColor: Color(0xffF5F5F5),
                           content: Container(
                             width: MediaQuery.of(context).size.width,
-                            height: 270.sp,
+                            height: 300.sp,
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
@@ -81,13 +97,13 @@ class _UserAccountDetailsScreenState extends State<UserAccountDetailsScreen> {
                                   title: Text(
                                     "Add account",
                                     style: GoogleFonts.poppins(
-                                        fontSize: 14,
+                                        fontSize: 12,
                                         color: Colors.white,
                                         fontWeight: FontWeight.bold),
                                   ),
                                   backgroundColor: Color(0xffB71C1C),
                                   iconTheme: IconThemeData(
-                                      size: 20, color: Colors.white),
+                                      size: 12, color: Colors.white),
                                   titleSpacing: 0,
                                   shape: const RoundedRectangleBorder(
                                       borderRadius: BorderRadius.only(
@@ -122,7 +138,7 @@ class _UserAccountDetailsScreenState extends State<UserAccountDetailsScreen> {
                                                       fontWeight:
                                                           FontWeight.bold,
                                                       color: Colors.black45,
-                                                      fontSize: 12.sp,
+                                                      fontSize: 10.sp,
                                                       decoration:
                                                           TextDecoration.none,
                                                     ),
@@ -135,13 +151,13 @@ class _UserAccountDetailsScreenState extends State<UserAccountDetailsScreen> {
                                                           fontWeight:
                                                               FontWeight.bold,
                                                           color: Colors.black45,
-                                                          fontSize: 12.sp,
+                                                          fontSize: 10.sp,
                                                           decoration:
                                                               TextDecoration
                                                                   .none,
                                                         ),
                                                         prefixIcon:
-                                                            Icon(Icons.email),
+                                                            Icon(Icons.email,size: 12,),
                                                         prefixIconColor:
                                                             Color(0xffB71C1C)),
                                                   ),
@@ -176,7 +192,7 @@ class _UserAccountDetailsScreenState extends State<UserAccountDetailsScreen> {
                                                       fontWeight:
                                                           FontWeight.bold,
                                                       color: Colors.black45,
-                                                      fontSize: 12.sp,
+                                                      fontSize: 10.sp,
                                                       decoration:
                                                           TextDecoration.none,
                                                     ),
@@ -190,13 +206,13 @@ class _UserAccountDetailsScreenState extends State<UserAccountDetailsScreen> {
                                                           fontWeight:
                                                               FontWeight.bold,
                                                           color: Colors.black45,
-                                                          fontSize: 12.sp,
+                                                          fontSize: 10.sp,
                                                           decoration:
                                                               TextDecoration
                                                                   .none,
                                                         ),
                                                         prefixIcon:
-                                                            Icon(Icons.lock),
+                                                            Icon(Icons.lock,size: 12,),
                                                         prefixIconColor:
                                                             Color(0xffB71C1C)),
                                                   ),
@@ -221,7 +237,7 @@ class _UserAccountDetailsScreenState extends State<UserAccountDetailsScreen> {
                                                   Text(
                                                     "Admin : ",
                                                     style: GoogleFonts.poppins(
-                                                        fontSize: 12,
+                                                        fontSize: 10,
                                                         color: Colors.black,
                                                         fontWeight: FontWeight.bold),
                                                   ),
@@ -245,9 +261,11 @@ class _UserAccountDetailsScreenState extends State<UserAccountDetailsScreen> {
                                                   if(email=="" || password==""){
                                                     showTopSnackBar(Overlay.of(context),CustomSnackBar.error(message: "Please enter valid details"));
                                                   }else{
+                                                    assignAccountNames();
                                                     Navigator.pop(context);
                                                     addDataToFirestore("accounts", email, {"admin":isAdmin,"password":password});
                                                     showTopSnackBar(Overlay.of(context),CustomSnackBar.success(message: "Account added successfully"));
+
                                                   }
                                                 },
                                                 child: Container(
@@ -262,7 +280,7 @@ class _UserAccountDetailsScreenState extends State<UserAccountDetailsScreen> {
                                                         style: GoogleFonts.poppins(
                                                             color: Colors.black,
                                                             fontWeight: FontWeight.bold,
-                                                            fontSize: 12)),
+                                                            fontSize: 10)),
                                                   ),
                                                 ),
                                               ),
@@ -321,6 +339,45 @@ class _UserAccountDetailsScreenState extends State<UserAccountDetailsScreen> {
                     colors: [Color(0xFF03A7FF), Color(0xFFAE002C)],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight))),
+      ),
+      body: Column(
+        children: accountNames.map((name){
+          return Padding(
+            padding: const EdgeInsets.only(left: 20,right: 20,top: 20),
+            child: Container(
+              padding: EdgeInsets.all(15),
+              decoration: BoxDecoration(
+                color: Color(0xffF5F5F5),
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [BoxShadow(color: Colors.black12,blurRadius: 2)]
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(name,style: GoogleFonts.poppins(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12.sp,
+                    color: Color(0xffB71C1C)
+                  ),),
+                  Bounceable(
+                      onTap: ()async{
+                        showConfirmationDialog(
+                            snackBarMessage: "Account $name Deleted",
+                            content:"Are you sure you want to delete this account?",
+                            onConfirm: (){
+                              deleteDocumentsFromPath("accounts", [name]);
+                              setState(() {
+                                accountNames.remove(name);
+                              });
+                            },
+                            title: "Delete $name Account", context: context
+                        );
+                      }, child: Icon(CupertinoIcons.minus,size: 18,))
+            ],
+              ),
+            ),
+          );
+        }).toList(),
       ),
     );
   }

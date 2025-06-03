@@ -9,8 +9,8 @@ import 'package:namekart_app/activity_helpers/GlobalVariables.dart';
 import 'package:provider/provider.dart';
 import 'package:top_snackbar_flutter/safe_area_values.dart';
 import 'package:top_snackbar_flutter/top_snack_bar.dart';
-import 'AllDatabaseChangeNotifiers.dart';
-import 'WebSocketService.dart'; // Update to your path
+import '../change_notifiers/AllDatabaseChangeNotifiers.dart';
+import '../change_notifiers/WebSocketService.dart';
 
 class AlertWidget extends StatefulWidget {
   final String path;
@@ -42,44 +42,51 @@ class _AlertWidgetState extends State<AlertWidget> {
 
   late var connected;
 
+  bool _timerInitialized = false;
+
+
 
   @override
   void initState() {
     super.initState();
 
-    _checkConnectivity();
+    if (!_timerInitialized) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _checkConnectivity();
 
-    _connectivitySubscription = Connectivity()
-        .onConnectivityChanged
-        .listen((List<ConnectivityResult> results) {
-      final connected = results.any((r) => r != ConnectivityResult.none);
-      if (mounted && _hasInternet != connected) {
-        setState(() {
-          _hasInternet = connected;
+        _connectivitySubscription = Connectivity()
+            .onConnectivityChanged
+            .listen((List<ConnectivityResult> results) {
+          final connected = results.any((r) => r != ConnectivityResult.none);
+          if (mounted && _hasInternet != connected) {
+            setState(() {
+              _hasInternet = connected;
+            });
+            _showConnectivitySnack();
+          }
         });
-        _showConnectivitySnack();
-      }
-    });
 
-    _webSocketCheckTimer = Timer.periodic(const Duration(seconds: 5), (timer) async {
-      if (!mounted) {
-        timer.cancel();
-        return;
-      }
+        _webSocketCheckTimer = Timer.periodic(const Duration(seconds: 5), (timer) async {
+          if (!mounted) {
+            timer.cancel();
+            return;
+          }
 
-      final isNowConnected = WebSocketService.isConnected;
-      print(isNowConnected);
+          final isNowConnected = WebSocketService.isConnected;
 
-      if (!isNowConnected && !snackbarShowing) {
-        _showWebSocketSnack();
-      }
+          if (!isNowConnected && !snackbarShowing) {
+            await _dismissSnackbar();
+            _showWebSocketSnack();
+          }
 
-      if (isNowConnected && snackbarShowing) {
-        await _dismissSnackbar(); // ✅ ensure this completes before resetting the flag
-        snackbarShowing = false;
-      }
-    });
+          if (isNowConnected && snackbarShowing) {
+            await _dismissSnackbar();
+          }
+        });
 
+        _timerInitialized = true;
+      });
+    }
   }
 
   void _checkConnectivity() async {
@@ -94,16 +101,17 @@ class _AlertWidgetState extends State<AlertWidget> {
   }
 
   Future<void> _showConnectivitySnack() async {
-    final message =
-        _hasInternet ? '✅ Internet reconnected' : '⚠️ No internet connection';
-    final color = _hasInternet ? Colors.green : Colors.orange;
+    final isConnected = _hasInternet;
+    final message = isConnected ? '✅ Internet reconnected' : '⚠️ No internet connection';
+    final color = isConnected ? Colors.green : Colors.orange;
 
-    if (_hasInternet.toString().contains("Internet reconnected")) {
-        _dismissSnackbar();
-    }else{
+    if (isConnected) {
+      await _dismissSnackbar(); // Dismiss on reconnection
+    } else {
       _showSnackBar(message, color);
     }
   }
+
 
   void _showWebSocketSnack() {
     snackbarShowing=true;
@@ -138,13 +146,15 @@ class _AlertWidgetState extends State<AlertWidget> {
             ),
             Bounceable(
               onTap: () async {
+
+                if(reconnecting=false) {
+                  _dismissSnackbar();
+                  await Future.delayed(Duration(milliseconds: 100));
+                  _showWebSocketSnack(); // show again with loading
+                }
                 setState(() {
                   reconnecting = true;
                 });
-
-                _dismissSnackbar();
-                await Future.delayed(Duration(milliseconds: 100));
-                _showWebSocketSnack(); // show again with loading
 
                 try {
                   final ws = WebSocketService();
@@ -155,6 +165,7 @@ class _AlertWidgetState extends State<AlertWidget> {
                     Provider.of<NotificationDatabaseChange>(context, listen: false),
                     Provider.of<NewNotificationTableAddNotifier>(context, listen: false),
                     Provider.of<DatabaseDataUpdatedNotifier>(context, listen: false),
+                    Provider.of<NotifyRebuildChange>(context, listen: false),
                   ).timeout(const Duration(seconds: 5), onTimeout: () {
                     throw TimeoutException("WebSocket connection timed out");
                   });
@@ -181,10 +192,12 @@ class _AlertWidgetState extends State<AlertWidget> {
                     setState(() {
                       reconnecting = false;
                       _dismissSnackbar();
-                      _showWebSocketSnack(); // show button again
+                      _showWebSocketSnack();
+
                     });
                   }
                 } catch (e) {
+                  print(e.toString());
                   setState(() {
                     reconnecting = false;
                     _dismissSnackbar();
@@ -238,17 +251,22 @@ class _AlertWidgetState extends State<AlertWidget> {
 
   Future<void> _dismissSnackbar() async {
     try {
-      snackbarShowing=false;
-      await topSnackBarController!.reverse(); // Wait for animation to finish
-    }catch(e){
-      snackbarShowing=false;
-      topSnackBarController = null;
-    };
+      if (topSnackBarController != null && topSnackBarController!.isCompleted) {
+        await topSnackBarController!.reverse();
+      }
+    } catch (_) {}
+
+    topSnackBarController = null;
+    snackbarShowing = false;
+    reconnecting = false;
   }
 
 
 
   void _showSnackBar(String message, Color backgroundColor) {
+    if (snackbarShowing) return; // Prevent multiple snackbars
+    snackbarShowing = true;
+
     showTopSnackBar(
       snackBarPosition: SnackBarPosition.bottom,
       safeAreaValues: SafeAreaValues(minimum: EdgeInsets.only(top: 80)),

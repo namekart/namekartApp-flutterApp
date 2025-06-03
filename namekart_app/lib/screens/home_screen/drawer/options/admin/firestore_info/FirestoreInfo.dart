@@ -1,5 +1,4 @@
 import 'dart:convert';
-
 import 'package:calendar_timeline/calendar_timeline.dart';
 import 'package:dropdown_button2/dropdown_button2.dart';
 import 'package:flutter/cupertino.dart';
@@ -7,25 +6,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bounceable/flutter_bounceable.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:cloud_firestore/cloud_firestore.dart'; // Add this if not in GlobalFunctions
-import 'package:http/http.dart';
-import 'package:namekart_app/change_notifiers/SnackbarManager.dart';
-import 'package:namekart_app/database/HiveHelper.dart';
-import 'package:provider/provider.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:text_scroll/text_scroll.dart';
 import 'package:top_snackbar_flutter/custom_snack_bar.dart';
 import 'package:top_snackbar_flutter/top_snack_bar.dart';
-
 import '../../../../../../activity_helpers/FirestoreHelper.dart';
-import '../../../../../../activity_helpers/GlobalFunctions.dart'
-    as GlobalFunctions;
 import '../../../../../../activity_helpers/GlobalVariables.dart';
 import '../../../../../../activity_helpers/UIHelpers.dart';
 import '../../../../../../change_notifiers/WebSocketService.dart';
 import '../../../../../../cutsom_widget/AnimatedAvatarIcon.dart';
-import '../../../../../../cutsom_widget/SuperAnimatedWidget/SuperAnimatedWidget.dart';
-import '../../../../../live_screens/live_details_screen.dart';
+import '../../../../../../cutsom_widget/SuperAnimatedWidget.dart';
 
 class FirestoreInfo extends StatefulWidget {
   @override
@@ -637,6 +627,8 @@ class _FirestoreInfoState extends State<FirestoreInfo> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
+        shadowColor: Colors.black,
+        elevation: 5,
         iconTheme: const IconThemeData(color: Colors.white, size: 20),
         actions: [
           Container(
