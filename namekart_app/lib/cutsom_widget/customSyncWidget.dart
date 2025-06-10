@@ -66,23 +66,50 @@ class _AlertWidgetState extends State<AlertWidget> {
           }
         });
 
-        _webSocketCheckTimer = Timer.periodic(const Duration(seconds: 5), (timer) async {
+        _webSocketCheckTimer = Timer.periodic(const Duration(seconds: 20), (timer) async {
           if (!mounted) {
             timer.cancel();
             return;
           }
 
-          final isNowConnected = WebSocketService.isConnected;
+          try {
+            final ws = WebSocketService();
 
-          if (!isNowConnected && !snackbarShowing) {
-            await _dismissSnackbar();
-            _showWebSocketSnack();
-          }
+            final response = await ws.sendMessageGetResponse({
+              "query": "check-connection",
+            }, "user").timeout(
+              const Duration(seconds: 20),
+              onTimeout: () => <String, dynamic>{},
+            );
 
-          if (isNowConnected && snackbarShowing) {
-            await _dismissSnackbar();
+            final stillConnected = response.isNotEmpty &&
+                response.containsKey('data') &&
+                jsonDecode(response['data'])['response']
+                    .toString()
+                    .toLowerCase()
+                    .contains("connected");
+
+            if (stillConnected) {
+              // If already connected, dismiss any warning
+              if (snackbarShowing) {
+                await _dismissSnackbar();
+              }
+            } else {
+              // Show warning only if connection check failed after timeout
+              if (!snackbarShowing) {
+                await _dismissSnackbar();
+                _showWebSocketSnack();
+              }
+            }
+          } catch (e) {
+            // In case of exceptions, treat as disconnected
+            if (!snackbarShowing) {
+              await _dismissSnackbar();
+              _showWebSocketSnack();
+            }
           }
         });
+
 
         _timerInitialized = true;
       });
@@ -197,7 +224,6 @@ class _AlertWidgetState extends State<AlertWidget> {
                     });
                   }
                 } catch (e) {
-                  print(e.toString());
                   setState(() {
                     reconnecting = false;
                     _dismissSnackbar();

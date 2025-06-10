@@ -57,7 +57,7 @@ Widget text(
     required Color color,
     required FontWeight fontWeight}) {
   return Text(text,
-      style: GoogleFonts.workSans()
+      style: GoogleFonts.poppins()
           .copyWith(fontWeight: fontWeight, color: color, fontSize: size));
 }
 

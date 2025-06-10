@@ -44,7 +44,7 @@ class WebSocketService with ChangeNotifier {
     try {
       print("Connecting to WebSocket with userId: $userId");
       _channel = WebSocketChannel.connect(
-        Uri.parse('ws://192.168.1.6:8081/websocket/auctions?userId=$userId'),
+        Uri.parse('ws://nk-phone-app-helper-microservice.politesky-7d4012d0.westus.azurecontainerapps.io/websocket/auctions?userId=$userId'),
       );
 
       print("object ${_channel.toString()}");
@@ -64,12 +64,10 @@ class WebSocketService with ChangeNotifier {
 
             if(path.contains("live")) {
               liveDatabaseChange.notifyLiveDatabaseChange(path);
-              notifyRebuildChange.notifyRebuild();
 
               HiveHelper.addDataToHive("live~all~auctions", data['id'].toString(), data);
             }else if(path.contains("notifications")){
               liveDatabaseChange.notifyLiveDatabaseChange(path);
-              notifyRebuildChange.notifyRebuild();
               notificationDatabaseChange.notifyNotificationDatabaseChange();
             }
           }

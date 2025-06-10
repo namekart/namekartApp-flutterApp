@@ -71,8 +71,6 @@ class MyApp extends StatelessWidget {
 
     GlobalProviders.initialize(context);
 
-    final webSocketService = Provider.of<WebSocketService>(context, listen: false);
-
     WebSocketService.onBroadcastMessage.listen((onData){
       print("ondata $onData");
     });

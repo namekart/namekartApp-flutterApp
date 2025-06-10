@@ -5,12 +5,15 @@ import 'package:carousel_slider/carousel_slider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bounceable/flutter_bounceable.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:haptic_feedback/haptic_feedback.dart';
 import 'package:namekart_app/activity_helpers/GlobalVariables.dart';
 import 'package:namekart_app/database/UserSettingsDatabase.dart';
 import 'package:http/http.dart' as http;
+
+import '../../activity_helpers/UIHelpers.dart';
 
 class LoginScreen extends StatefulWidget {
   @override
@@ -27,19 +30,17 @@ class _LoginScreenState extends State<LoginScreen> {
 
   String username = "";
   String password = "";
-  bool _isLoading = false;  // ✅ Declare _isLoading
-
+  bool _isLoading = false; // ✅ Declare _isLoading
 
   Future<void> _signInAnonymously() async {
     try {
       UserCredential userCredential =
-      await FirebaseAuth.instance.signInAnonymously();
+          await FirebaseAuth.instance.signInAnonymously();
       print("Signed in as: ${userCredential.user?.uid}");
     } catch (e) {
       print("Error during anonymous sign-in: $e");
     }
   }
-
 
   @override
   void initState() {
@@ -51,7 +52,6 @@ class _LoginScreenState extends State<LoginScreen> {
     _textEditingController1.addListener(_getUserId);
 
     _textEditingController2.addListener(_getPassword);
-
   }
 
   void _getUserId() {
@@ -71,13 +71,21 @@ class _LoginScreenState extends State<LoginScreen> {
       SnackBar(
         content: Text(message),
         backgroundColor: success ? Colors.green : Colors.red,
-        duration: Duration(seconds: 3),
+        duration: Duration(seconds: 1),
         action: SnackBarAction(
           label: 'Close',
           onPressed: () => ScaffoldMessenger.of(context).hideCurrentSnackBar(),
         ),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    // TODO: implement dispose
+    _textEditingController2.dispose();
+    _textEditingController1.dispose();
+    super.dispose();
   }
 
   @override
@@ -88,70 +96,25 @@ class _LoginScreenState extends State<LoginScreen> {
       body: Container(
         color: Colors.white,
         child: SingleChildScrollView(
-          child: Column(children: [
-            PreferredSize(
-                preferredSize: Size.fromHeight(kToolbarHeight),
-                child: AppBar(
-                  backgroundColor: Colors.white,
-                  title: Row(
-                    children: [
-                      Image.asset(
-                        "assets/images/applogo-transparent.png",
-                        width: 30,
-                        height: 30,
-                      ),
-                      const SizedBox(width: 8),
-                      Padding(
-                        padding: const EdgeInsets.only(left: 8.0),
-                        child: Text(
-                          "Namekart",
-                          style: GoogleFonts.poppins(
-                            fontSize: 20.sp,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFFFF0000),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  centerTitle: true,
-                  toolbarHeight: 50,
-                )),
-            SizedBox(
-              height: 20,
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Image.asset(
+                  "assets/images/login_screen_images/loginpagenamekartlogo.png",
+                  width: 170.sp,
+                  height: 280.sp,
+                ),
+              ],
             ),
-            Container(
-              width: 320.sp,
-              height: 90.sp,
-              decoration: BoxDecoration(
-                color: Color(0xffB71C1C),
-                borderRadius: BorderRadius.all(Radius.circular(20)),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black,
-                    blurRadius: 1,
-                  ),
-                ],
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  Image.asset(
-                    "assets/images/login_screen_images/login.png",
-                    width: 50.sp,
-                    height: 50.sp,
-                  ),
-                  Text(
-                    "Login",
-                    style: GoogleFonts.poppins(
-                      fontWeight: FontWeight.w800,
-                      color: Colors.white,
-                      fontSize: 15.sp,
-                      decoration: TextDecoration.none,
-                    ),
-                  ),
-                ],
-              ),
+            Padding(
+              padding: const EdgeInsets.only(left: 25.0),
+              child: text(
+                  text: "Welcome Back",
+                  size: 14.sp,
+                  color: Color(0xff3F3F41),
+                  fontWeight: FontWeight.w400),
             ),
             Padding(
               padding: const EdgeInsets.only(
@@ -162,11 +125,11 @@ class _LoginScreenState extends State<LoginScreen> {
                 decoration: BoxDecoration(
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black26,
-                        blurRadius: 10,
+                        color: Colors.black12,
+                        blurRadius: 0.5,
                       ),
                     ],
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: BorderRadius.circular(10),
                     color: Colors.white),
                 child: Padding(
                   padding: const EdgeInsets.only(left: 5),
@@ -177,23 +140,27 @@ class _LoginScreenState extends State<LoginScreen> {
                         width: 200.sp,
                         child: TextField(
                           style: GoogleFonts.poppins(
-                            fontWeight: FontWeight.bold,
+                            fontWeight: FontWeight.w300,
                             color: Colors.black,
                             fontSize: 10.sp,
                             decoration: TextDecoration.none,
                           ),
                           controller: _textEditingController1,
                           decoration: InputDecoration(
-                              labelText: 'Username',
+                              labelText: 'User ID',
                               border: InputBorder.none,
                               labelStyle: GoogleFonts.poppins(
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xffB71C1C),
+                                fontWeight: FontWeight.w300,
+                                color: Color(0xff717171),
                                 fontSize: 10.sp,
                                 decoration: TextDecoration.none,
                               ),
-                              prefixIcon: Icon(Icons.email,size: 18,),
-                              prefixIconColor: Color(0xffB71C1C)),
+                              prefixIcon: Icon(
+                                Icons.perm_identity_rounded,
+                                size: 18.sp,
+                                color: Color(0xff717171),
+                              ),
+                              prefixIconColor: Color(0xff717171)),
                         ),
                       ),
                     ],
@@ -207,13 +174,13 @@ class _LoginScreenState extends State<LoginScreen> {
                 height: 50.sp,
                 alignment: Alignment.centerLeft,
                 decoration: BoxDecoration(
-                    boxShadow: const [
+                    boxShadow: [
                       BoxShadow(
-                        color: Colors.black26,
-                        blurRadius: 10,
+                        color: Colors.black12,
+                        blurRadius: 0.5,
                       ),
                     ],
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: BorderRadius.circular(10),
                     color: Colors.white),
                 child: Padding(
                   padding: const EdgeInsets.only(left: 5),
@@ -225,7 +192,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         child: TextField(
                           controller: _textEditingController2,
                           style: GoogleFonts.poppins(
-                            fontWeight: FontWeight.bold,
+                            fontWeight: FontWeight.w300,
                             color: Colors.black,
                             fontSize: 10.sp,
                             decoration: TextDecoration.none,
@@ -235,13 +202,17 @@ class _LoginScreenState extends State<LoginScreen> {
                               labelText: 'Password',
                               border: InputBorder.none,
                               labelStyle: GoogleFonts.poppins(
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xffB71C1C),
+                                fontWeight: FontWeight.w300,
+                                color: Color(0xff717171),
                                 fontSize: 10.sp,
                                 decoration: TextDecoration.none,
                               ),
-                              prefixIcon: Icon(Icons.lock,size: 18,),
-                              prefixIconColor: Color(0xffB71C1C)),
+                              prefixIcon: Icon(
+                                Icons.lock_outline_rounded,
+                                size: 18.sp,
+                                color: Color(0xff717171),
+                              ),
+                              prefixIconColor: Color(0xff717171)),
                         ),
                       ),
                     ],
@@ -250,277 +221,121 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ),
             Row(
+              mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                const Expanded(
-                  child: SizedBox(
-                    width: 50,
-                  ),
-                ),
                 Padding(
-                  padding: const EdgeInsets.all(30),
-                  child:  GestureDetector(
-                    onTap: () async {
-                      if (username.isEmpty || password.isEmpty) {
-                        _showSnackBar("❌ Please Enter UserId/Password");
-                        Haptics.vibrate(HapticsType.error);
-                        return;
-                      }
+                  padding: const EdgeInsets.only(top: 20, right: 30),
+                  child: text(
+                      text: "Forgot Password?",
+                      size: 10,
+                      color: const Color(0xffFF6B6B),
+                      fontWeight: FontWeight.w300),
+                ),
+              ],
+            ),
+            Bounceable(
+              onTap: () async {
+                if (username.isEmpty || password.isEmpty) {
+                  Haptics.vibrate(HapticsType.error);
+                  _showSnackBar("❌ Please Enter UserId/Password");
+                  return;
+                }
 
-                      setState(() => _isLoading = true); // Start loading
+                setState(() => _isLoading = true); // Start loading
 
-                      try {
-                        final response = await http.post(
-                          Uri.parse("http://192.168.1.6:8081/auth/login"),
-                          headers: {"Content-Type": "application/json"},
-                          body: jsonEncode({"username": username, "password": password}),
-                        );
-
-                        setState(() => _isLoading = false); // Stop loading
-
-                        if (response.statusCode == 200) {
-                          final data = jsonDecode(response.body);
-                          final isAdmin = data["admin"];
-
-                          _showSnackBar("✅ Logged in successfully", success: true);
-
-                          UserSettingsDatabase userSettingsDatabase = UserSettingsDatabase.instance;
-
-                          userSettingsDatabase.addOrUpdateUser(username, password);
-
-                          GlobalProviders.userId = username;
+                try {
+                  final response = await http.post(
+                    Uri.parse(
+                        "https://nk-phone-app-helper-microservice.politesky-7d4012d0.westus.azurecontainerapps.io/auth/login"),
+                    headers: {"Content-Type": "application/json"},
+                    body: jsonEncode(
+                        {"username": username, "password": password}),
+                  );
 
 
-                          Future.delayed(Duration(seconds: 1), () {
-                            Navigator.pushReplacementNamed(context, 'home',
-                                arguments: {"isAdmin": isAdmin});
+                  if (response.statusCode == 200) {
+                    final data = jsonDecode(response.body);
+                    final isAdmin = data["admin"];
 
-                            Haptics.vibrate(HapticsType.error);
+                    _showSnackBar("✅ Logged in successfully", success: true);
 
-                          });
-                        } else {
-                          _showSnackBar("❌ Wrong Username/Password");
-                          Haptics.vibrate(HapticsType.error);
-                        }
-                      } catch (e) {
-                        setState(() => _isLoading = false);
-                        _showSnackBar("❌ Server error, please try again later");
-                        Haptics.vibrate(HapticsType.error);
-                        print(e);
-                      }
-                    },
-                    child: Container(
-                      width: 80.sp,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        boxShadow: const [
-                          BoxShadow(
-                            color: Colors.black,
-                            blurRadius: 5,
-                          ),
-                        ],
-                        color: Color(0xFFFF0000),
-                        borderRadius: BorderRadius.circular(10),
+                    UserSettingsDatabase userSettingsDatabase =
+                        UserSettingsDatabase.instance;
+
+                    userSettingsDatabase.addOrUpdateUser(username, password);
+
+                    GlobalProviders.userId = username;
+
+                    await Future.delayed(Duration(seconds: 2));
+
+                    Navigator.pushReplacementNamed(context, 'home',
+                        arguments: {"isAdmin": isAdmin});
+
+                    Haptics.vibrate(HapticsType.success);
+
+
+                  } else {
+                    _showSnackBar("❌ Wrong Username/Password");
+                    Haptics.vibrate(HapticsType.error);
+                  }
+                } catch (e) {
+                  setState(() => _isLoading = false);
+                  _showSnackBar("❌ Server error, please try again later");
+                  Haptics.vibrate(HapticsType.error);
+                  print(e);
+                }
+                setState(() => _isLoading = false); // Stop loading
+              },
+              child: Padding(
+                padding: const EdgeInsets.only(
+                    top: 45, left: 45, right: 45, bottom: 20),
+                child: Container(
+                  padding: EdgeInsets.all(15),
+                  decoration: BoxDecoration(
+                    color: Color(0xffE63946),
+                    borderRadius: BorderRadius.all(Radius.circular(10)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black,
+                        blurRadius: 1,
                       ),
-                      child: Padding(
-                          padding: const EdgeInsets.all(10),
-                          child: _isLoading
-                              ? SizedBox(height:20,width: 20,child: CircularProgressIndicator(color: Colors.white,strokeWidth: 5,)) // ✅ Show Loader
-                              : Text(
-                            "Login",
-                            style: GoogleFonts.poppins(
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      _isLoading
+                          ? SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 5,
+                              ))
+                          : text(
+                              text: "Login",
+                              size: 12,
                               color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 10.sp,
-                            ),
-                          ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(
-              height: 20,
-            ),
-            CarouselSlider(
-              items: [
-                Container(
-                  width: 320.sp,
-                  decoration: BoxDecoration(
-                    color: Color(0xffF6F6F6),
-                    borderRadius: BorderRadius.all(Radius.circular(20)),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black12,
-                        blurRadius: 20,
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Container(
-                        width: 160.sp,
-                        child: Column(
-                          children: [
-                            SizedBox(
-                              height: 20.sp,
-                            ),
-                            Container(
-                              width: 170.sp,
-                              child: Text("Discover Premium Domains",
-                                  style: GoogleFonts.poppins(
-                                      color: Color(0xFFB71C1C),
-                                      fontWeight: FontWeight.w800,
-                                      fontSize: 12.sp)),
-                            ),
-                            SizedBox(
-                              height: 15.sp,
-                            ),
-                            Container(
-                              width: 170.sp,
-                              child: Text(
-                                  "Find the perfect name for your business – trusted by startups worldwide!",
-                                  style: GoogleFonts.poppins(
-                                      color: Colors.black38,
-                                      fontWeight: FontWeight.w800,
-                                      fontSize: 8.sp)),
-                            )
-                          ],
-                        ),
-                      ),
-                      Image.asset(
-                        "assets/images/login_screen_images/discoverpremiumdomains.png",
-                        width: 70.sp,
-                        height: 70.sp,
-                      )
+                              fontWeight: FontWeight.w300),
                     ],
                   ),
                 ),
-                Container(
-                  width: 320.sp,
-                  decoration: const BoxDecoration(
-                    color: Color(0xffF6F6F6),
-                    borderRadius: BorderRadius.all(Radius.circular(20)),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black12,
-                        blurRadius: 20,
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Container(
-                        width: 160.sp,
-                        child: Column(
-                          children: [
-                            SizedBox(
-                              height: 20.sp,
-                            ),
-                            Container(
-                              width: 170.sp,
-                              child: Text("Secure Your\nBrand",
-                                  style: GoogleFonts.poppins(
-                                      color: Color(0xFFB71C1C),
-                                      fontWeight: FontWeight.w800,
-                                      fontSize: 12.sp)),
-                            ),
-                            SizedBox(
-                              height: 15.sp,
-                            ),
-                            Container(
-                              width: 170.sp,
-                              child: Text(
-                                  "Stealth acquisitions and expert valuations to help you stand out.",
-                                  style: GoogleFonts.poppins(
-                                      color: Colors.black38,
-                                      fontWeight: FontWeight.w800,
-                                      fontSize: 8.sp)),
-                            )
-                          ],
-                        ),
-                      ),
-                      Image.asset(
-                        "assets/images/login_screen_images/secureyourbrand.png",
-                        width: 70.sp,
-                        height: 70.sp,
-                      )
-                    ],
-                  ),
-                ),
-                Container(
-                  width: 320.sp,
-                  decoration: BoxDecoration(
-                    color: Color(0xffF6F6F6),
-                    borderRadius: BorderRadius.all(Radius.circular(20)),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black12,
-                        blurRadius: 20,
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Container(
-                        width: 160.sp,
-                        child: Column(
-                          children: [
-                            SizedBox(
-                              height: 20.sp,
-                            ),
-                            Container(
-                              width: 170.sp,
-                              child: Text("Your Success, Our Priority",
-                                  style: GoogleFonts.poppins(
-                                      color: Color(0xFFB71C1C),
-                                      fontWeight: FontWeight.w800,
-                                      fontSize: 12.sp)),
-                            ),
-                            SizedBox(
-                              height: 15.sp,
-                            ),
-                            Container(
-                              width: 170.sp,
-                              child: Text(
-                                  "With a 90% success rate, Namekart ensures you get what you need.",
-                                  style: GoogleFonts.poppins(
-                                      color: Colors.black38,
-                                      fontWeight: FontWeight.w800,
-                                      fontSize: 8.sp)),
-                            )
-                          ],
-                        ),
-                      ),
-                      Image.asset(
-                        "assets/images/login_screen_images/yoursuccessispriority.png",
-                        width: 70.sp,
-                        height: 70.sp,
-                      )
-                    ],
-                  ),
-                ),
-              ],
-              options: CarouselOptions(
-                clipBehavior: Clip.none,
-                viewportFraction: 1.0,
-                onPageChanged: (index, reason) {
-                  setState(() {
-                    activeIndex = index;
-                  });
-                },
-                enlargeCenterPage: true,
-                autoPlay: true,
-                autoPlayInterval: Duration(seconds: 10),
-                autoPlayAnimationDuration: Duration(milliseconds: 800),
-                scrollPhysics: BouncingScrollPhysics(),
               ),
+            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                text(
+                    text: "Don’t have an account? ",
+                    size: 10,
+                    color: Colors.black,
+                    fontWeight: FontWeight.w300),
+                text(
+                    text: "Register Now ",
+                    size: 10,
+                    color: Color(0xffFF6B6B),
+                    fontWeight: FontWeight.w300),
+              ],
             )
           ]),
         ),
