@@ -209,7 +209,7 @@ class _HelpDeskState extends State<HelpDesk> {
                             await w.sendMessageGetResponse({
                               "query": websocketQuery.toString(),
                               "message": foundBugText.toString(),
-                            }, "user").timeout(Duration(seconds: 5));
+                            }, "user",expectedQuery: 'bug-reports').timeout(Duration(seconds: 5));
 
                             // If response comes within 5 seconds
                             showTopSnackBar(

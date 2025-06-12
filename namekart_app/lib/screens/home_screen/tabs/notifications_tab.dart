@@ -57,6 +57,7 @@ class _NotificationsTabState extends State<NotificationsTab> with WidgetsBinding
     });
 
     getAllData();
+
   }
 
   void getAllData() async {
@@ -64,7 +65,7 @@ class _NotificationsTabState extends State<NotificationsTab> with WidgetsBinding
     final response = await w.sendMessageGetResponse({
       "query": "firebase-allsubsubcollections",
       "path": "notifications"
-    }, "user");
+    }, "user",expectedQuery: 'firebase-allsubsubcollections');
 
     final decoded = jsonDecode(response["data"]);
     final Map<String, dynamic> rawMap = decoded["response"];

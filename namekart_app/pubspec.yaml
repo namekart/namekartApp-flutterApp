@@ -91,7 +91,7 @@ dev_dependencies:
   # activated in the `analysis_options.yaml` file located at the root of your
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
-  flutter_lints: ^4.0.0
+  flutter_lints: ^5.0.0
   json_serializable: ^6.0.0  # For JSON serialization support
 
 
@@ -119,6 +119,7 @@ flutter:
     - assets/images/bubbles_images/searchDialogImages/
     - assets/images/home_screen_images/drawer/options/admin/
     - assets/images/home_screen_images/carousel_options/whatnewupdate/
+    - assets/msal_config.json
 
   # To add assets to your application, add an assets section, like this:
   # assets:

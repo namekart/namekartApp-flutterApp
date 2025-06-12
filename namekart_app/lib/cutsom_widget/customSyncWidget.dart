@@ -75,9 +75,11 @@ class _AlertWidgetState extends State<AlertWidget> {
           try {
             final ws = WebSocketService();
 
-            final response = await ws.sendMessageGetResponse({
+            final response = await ws.sendMessageGetResponse(
+                {
               "query": "check-connection",
-            }, "user").timeout(
+            }
+            , "user",expectedQuery: 'check-connection').timeout(
               const Duration(seconds: 20),
               onTimeout: () => <String, dynamic>{},
             );
@@ -200,7 +202,8 @@ class _AlertWidgetState extends State<AlertWidget> {
                   // Wait up to 2 seconds for reconnection verification
                   final responseFuture = ws.sendMessageGetResponse({
                     "query": "reconnection-check",
-                  }, "user");
+                  }, "user",expectedQuery: 'reconnection-check');
+
 
                   final response = await responseFuture.timeout(
                     const Duration(seconds: 2),

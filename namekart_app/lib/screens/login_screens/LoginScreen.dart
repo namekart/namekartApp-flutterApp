@@ -9,7 +9,9 @@ import 'package:flutter_bounceable/flutter_bounceable.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:haptic_feedback/haptic_feedback.dart';
+import 'package:icons_plus/icons_plus.dart';
 import 'package:namekart_app/activity_helpers/GlobalVariables.dart';
+import 'package:namekart_app/activity_helpers/MicrosoftSignInButton.dart';
 import 'package:namekart_app/database/UserSettingsDatabase.dart';
 import 'package:http/http.dart' as http;
 
@@ -233,93 +235,100 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ],
             ),
-            Bounceable(
-              onTap: () async {
-                if (username.isEmpty || password.isEmpty) {
-                  Haptics.vibrate(HapticsType.error);
-                  _showSnackBar("❌ Please Enter UserId/Password");
-                  return;
-                }
+            Padding(
+              padding: const EdgeInsets.only(
+                  top: 45, left: 45, right: 45, bottom: 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Bounceable(
+                    onTap: () async {
+                      if (username.isEmpty || password.isEmpty) {
+                        Haptics.vibrate(HapticsType.error);
+                        _showSnackBar("❌ Please Enter UserId/Password");
+                        return;
+                      }
 
-                setState(() => _isLoading = true); // Start loading
+                      setState(() => _isLoading = true); // Start loading
 
-                try {
-                  final response = await http.post(
-                    Uri.parse(
-                        "https://nk-phone-app-helper-microservice.politesky-7d4012d0.westus.azurecontainerapps.io/auth/login"),
-                    headers: {"Content-Type": "application/json"},
-                    body: jsonEncode(
-                        {"username": username, "password": password}),
-                  );
+                      try {
+                        final response = await http.post(
+                          Uri.parse(
+                              "https://nk-phone-app-helper-microservice.politesky-7d4012d0.westus.azurecontainerapps.io/auth/login"),
+                          headers: {"Content-Type": "application/json"},
+                          body: jsonEncode(
+                              {"username": username, "password": password}),
+                        );
 
+                        if (response.statusCode == 200) {
+                          final data = jsonDecode(response.body);
+                          final isAdmin = data["admin"];
 
-                  if (response.statusCode == 200) {
-                    final data = jsonDecode(response.body);
-                    final isAdmin = data["admin"];
+                          _showSnackBar("✅ Logged in successfully",
+                              success: true);
 
-                    _showSnackBar("✅ Logged in successfully", success: true);
+                          UserSettingsDatabase userSettingsDatabase =
+                              UserSettingsDatabase.instance;
 
-                    UserSettingsDatabase userSettingsDatabase =
-                        UserSettingsDatabase.instance;
+                          userSettingsDatabase.addOrUpdateUser(
+                              username, password);
 
-                    userSettingsDatabase.addOrUpdateUser(username, password);
+                          GlobalProviders.userId = username;
 
-                    GlobalProviders.userId = username;
+                          await Future.delayed(Duration(seconds: 2));
 
-                    await Future.delayed(Duration(seconds: 2));
+                          Navigator.pushReplacementNamed(context, 'home',
+                              arguments: {"isAdmin": isAdmin});
 
-                    Navigator.pushReplacementNamed(context, 'home',
-                        arguments: {"isAdmin": isAdmin});
-
-                    Haptics.vibrate(HapticsType.success);
-
-
-                  } else {
-                    _showSnackBar("❌ Wrong Username/Password");
-                    Haptics.vibrate(HapticsType.error);
-                  }
-                } catch (e) {
-                  setState(() => _isLoading = false);
-                  _showSnackBar("❌ Server error, please try again later");
-                  Haptics.vibrate(HapticsType.error);
-                  print(e);
-                }
-                setState(() => _isLoading = false); // Stop loading
-              },
-              child: Padding(
-                padding: const EdgeInsets.only(
-                    top: 45, left: 45, right: 45, bottom: 20),
-                child: Container(
-                  padding: EdgeInsets.all(15),
-                  decoration: BoxDecoration(
-                    color: Color(0xffE63946),
-                    borderRadius: BorderRadius.all(Radius.circular(10)),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black,
-                        blurRadius: 1,
+                          Haptics.vibrate(HapticsType.success);
+                        } else {
+                          _showSnackBar("❌ Wrong Username/Password");
+                          Haptics.vibrate(HapticsType.error);
+                        }
+                      } catch (e) {
+                        setState(() => _isLoading = false);
+                        _showSnackBar("❌ Server error, please try again later");
+                        Haptics.vibrate(HapticsType.error);
+                        print(e);
+                      }
+                      setState(() => _isLoading = false); // Stop loading
+                    },
+                    child: Container(
+                      padding: EdgeInsets.all(15),
+                      decoration: const BoxDecoration(
+                        color: Color(0xffE63946),
+                        borderRadius: BorderRadius.all(Radius.circular(10)),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black,
+                            blurRadius: 1,
+                          ),
+                        ],
                       ),
-                    ],
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          _isLoading
+                              ? SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 5,
+                                  ))
+                              : text(
+                                  text: "Login",
+                                  size: 12,
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w300),
+                        ],
+                      ),
+                    ),
                   ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      _isLoading
-                          ? SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(
-                                color: Colors.white,
-                                strokeWidth: 5,
-                              ))
-                          : text(
-                              text: "Login",
-                              size: 12,
-                              color: Colors.white,
-                              fontWeight: FontWeight.w300),
-                    ],
-                  ),
-                ),
+                  SizedBox(height: 10,),
+                  // MicrosoftSignInButton()
+                ],
               ),
             ),
             Row(

@@ -712,7 +712,7 @@ class _FirestoreInfoState extends State<FirestoreInfo> {
                             final reponse = await w.sendMessageGetResponse({
                               "query": "firebase-subsubcollections",
                               "path": "live.${item}"
-                            }, "user");
+                            }, "user",expectedQuery: 'firebase-subsubcollections');
                             final responseString = jsonDecode(
                                     reponse["data"])["response"]
                                 .toString()
@@ -762,7 +762,7 @@ class _FirestoreInfoState extends State<FirestoreInfo> {
                             final reponse = await w.sendMessageGetResponse({
                               "query": "firebase-subsubcollections",
                               "path": "notifications.${item}"
-                            }, "user");
+                            }, "user",expectedQuery: 'firebase-subsubcollections');
                             final responseString = jsonDecode(
                                     reponse["data"])["response"]
                                 .toString()

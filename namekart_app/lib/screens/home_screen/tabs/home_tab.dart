@@ -53,7 +53,7 @@ class _HomeTabState extends State<HomeTab> {
     final Map<String, dynamic> response =
     await WebSocketService().sendMessageGetResponse({
       "query": "reconnection-check",
-    }, "user");
+    }, "user",expectedQuery: 'reconnection-check');
 
     final reconnected = response != null &&
         response.containsKey('data') &&

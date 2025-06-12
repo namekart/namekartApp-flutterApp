@@ -1,0 +1,6 @@
+{
+  "client_id": "c671954e-7f6e-4db7-91f9-08fa9eca986b",
+  "authority": "https://login.microsoftonline.com/eba2c098-631c-4978-8326-5d25c2d09ca5",
+  "redirect_uri": "msalc671954e-7f6e-4db7-91f9-08fa9eca986b://auth",
+  "account_mode": "SINGLE"
+}

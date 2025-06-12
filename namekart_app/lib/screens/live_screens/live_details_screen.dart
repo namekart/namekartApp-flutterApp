@@ -136,7 +136,7 @@ class _LiveDetailsScreenState extends State<LiveDetailsScreen>
     WebSocketService w = WebSocketService();
 
     final response = await w.sendMessageGetResponse(
-        {"query": "database-sync", "path": hiveDatabasePath}, "user");
+        {"query": "database-sync", "path": hiveDatabasePath}, "user",expectedQuery: 'database-sync');
 
     await syncFirestoreFromDocIdRange(
         hiveDatabasePath,
@@ -748,18 +748,16 @@ class _LiveDetailsScreenState extends State<LiveDetailsScreen>
                                             new WebSocketService();
 
                                         Map<String, String> a = {
-                                          "update-data-of-path":
-                                              "update-data-of-path",
-                                          "calledDocumentPath": path,
-                                          "calledDocumentPathFields":
-                                              "device_notification[3].ringAlarm",
+                                          "update-data-of-path": "update-data-of-path",
+                                          "calledDocumentPath": path, "calledDocumentPathFields":
+                                          "device_notification[3].ringAlarm",
                                           "type": "ringAlarmFalse"
                                         };
 
                                         //sending response to server imp
                                         await websocketService
                                             .sendMessageGetResponse(
-                                                a, "broadcast");
+                                                a, "broadcast",expectedQuery: 'ringAlarmFalse$path');
 
                                         setState(() {
                                           fetchDataByDate(
@@ -1085,8 +1083,7 @@ class _LiveDetailsScreenState extends State<LiveDetailsScreen>
                                                   return GestureDetector(
                                                     onTap: () async {
                                                       setState(() {
-                                                        buttonloading =
-                                                            "${auctionItem['id']} + ${buttonData.keys.toList()[0]}";
+                                                        buttonloading = "${auctionItem['id']} + ${buttonData.keys.toList()[0]}";
                                                       });
 
                                                       await dynamicDialog(
@@ -1125,7 +1122,6 @@ class _LiveDetailsScreenState extends State<LiveDetailsScreen>
                                                                 .formattedDate,
                                                             false);
 
-                                                        buttonloading="";
                                                       });
 
                                                       haptic();

@@ -11,8 +11,8 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_REMOTE_MESSAGING" />
     <uses-permission android:name="android.permission.VIBRATE"/>
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" /> <!-- Add this -->
     <application
         android:name="${applicationName}"
         android:allowBackup="false"
@@ -37,6 +37,19 @@
             </intent-filter>
         </activity>
 
+        <activity android:name="com.microsoft.identity.client.BrowserTabActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:host="auth"
+                    android:path=""
+                    android:scheme="msalc671954e-7f6e-4db7-91f9-08fa9eca986b"
+                    tools:ignore="AppLinkUrlError" />
+            </intent-filter>
+        </activity>
+
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
@@ -58,10 +71,12 @@
                 <action android:name="com.google.firebase.MESSAGING_EVENT" />
             </intent-filter>
         </service>
+
         <service
             android:name=".FCMBackgroundService"
             android:exported="false"
             android:foregroundServiceType="remoteMessaging" />
+
         <service
             android:name="com.dexterous.flutterlocalnotifications.services.NotificationService"
             android:exported="true"
@@ -72,19 +87,14 @@
             android:enabled="true"
             android:exported="true" />
 
+        <receiver android:name=".NotificationActionReceiver" />
+
         <service
             android:name="id.flutter.flutter_background_service.BackgroundService"
             android:foregroundServiceType="dataSync"
             android:exported="true"
             tools:ignore="MissingClass"
             tools:replace="android:foregroundServiceType" />
-
-
-        <receiver android:name=".NotificationActionReceiver" />
-
-
-
-
     </application>
 
     <queries>
@@ -93,5 +103,4 @@
             <data android:mimeType="text/plain" />
         </intent>
     </queries>
-
 </manifest>

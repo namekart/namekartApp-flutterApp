@@ -115,43 +115,66 @@ class WebSocketService with ChangeNotifier {
   }
 
   Future<Map<String, dynamic>> sendMessageGetResponse(
-      Map<String, dynamic> messageToSend,String type, {String? expectedPath}) async {
+      Map<String, dynamic> messageToSend,
+      String type, {
+        required String expectedQuery,
+      }) async {
     final completer = Completer<Map<String, dynamic>>();
 
-    late StreamSubscription subscription;
+    StreamSubscription? subscription;
 
-    void retriveData(String data){
+    void retrieveData(String data) {
       try {
-        final decoded = jsonDecode(data); // this is the full WebSocket message
-        final innerData = decoded;
-
-        // If you're expecting a specific path or ID, you can filter like this:
-        if (expectedPath == null || decoded["path"] == expectedPath) {
-          completer.complete(innerData);
-          subscription.cancel(); // Cancel after receiving the expected response
+        print("Received WebSocket message: $data"); // Log raw message
+        final decoded = jsonDecode(data);
+        if (decoded is Map<String, dynamic> && decoded.containsKey('data')) {
+          final innerData = jsonDecode(decoded['data'] as String) as Map<String, dynamic>;
+          print("Decoded inner data: $innerData"); // Log decoded data
+          if (innerData['query'] == expectedQuery) {
+            print("Query match for '$expectedQuery'. Completing with response: ${decoded}");
+            completer.complete(decoded); // Return the full WebSocket message
+            subscription?.cancel();
+          } else {
+            print("Query mismatch. Expected: '$expectedQuery', Got: '${innerData['query']}'");
+          }
+        } else {
+          print("Invalid WebSocket message format: $data");
         }
-      } catch (e) {
-        print("Error in decoding message: $e");
+      } catch (e, stackTrace) {
+        print("Error decoding message: $e\n$stackTrace");
       }
     }
 
-    if(type=="broadcast") {
-      subscription = onBroadcastMessage.listen((data) {retriveData(data);});
-    }else{
-      subscription = onUserMessage.listen((data) {retriveData(data);});
+    try {
+      // Validate WebSocket connection
 
+
+      // Subscribe to the appropriate stream
+      if (type == "broadcast") {
+        subscription = onBroadcastMessage.listen(retrieveData);
+      } else if (type == "user") {
+        subscription = onUserMessage.listen(retrieveData);
+      } else {
+        throw ArgumentError("Invalid type: $type. Must be 'broadcast' or 'user'.");
+      }
+
+      // Send the message
+      print("Sending message: $messageToSend for query: $expectedQuery");
+      sendMessage(messageToSend);
+    } catch (e, stackTrace) {
+      print("Error sending message: $e\n$stackTrace");
+      subscription?.cancel();
+      completer.completeError(Exception("Failed to send message: $e"));
+      return completer.future;
     }
 
-
-    // Send the message
-    sendMessage(messageToSend);
-
-    // Timeout
+    // Return the future with a timeout
     return completer.future.timeout(
-      Duration(seconds: 10),
+      const Duration(seconds: 10),
       onTimeout: () {
-        subscription.cancel();
-        throw TimeoutException("No broadcast response within time limit.");
+        print("Timeout waiting for response for query '$expectedQuery'");
+        subscription?.cancel();
+        throw TimeoutException("No response for query '$expectedQuery' within 10 seconds.");
       },
     );
   }

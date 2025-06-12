@@ -325,7 +325,7 @@ Future<void> dynamicDialog(BuildContext context, buttonData,String collectionNam
     };
 
     //sending response to server imp
-    await websocketService.sendMessageGetResponse(a,"broadcast");
+    await websocketService.sendMessageGetResponse(a,"broadcast",expectedQuery: buttonType.toLowerCase()+calledDocumentPath);
 
     dynamicDialog(context, HiveHelper.read(calledDocumentPath)['uiButtons'][bubbleButtonIndex][bubbleButtonName],collectionName,documentId,bubbleButtonIndex,bubbleButtonName,buttonType,buttonDomainName);
   }
@@ -343,7 +343,7 @@ Future<void> dynamicDialog(BuildContext context, buttonData,String collectionNam
     };
 
     //sending response to server imp
-    await websocketService.sendMessageGetResponse(a,"broadcast");
+    await websocketService.sendMessageGetResponse(a,"broadcast",expectedQuery: buttonType.toLowerCase()+calledDocumentPath);
 
     if(!buttonType.contains("Bid")) {
       dynamicDialog(

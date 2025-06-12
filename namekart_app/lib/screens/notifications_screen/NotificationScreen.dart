@@ -84,7 +84,7 @@ class _NotificationScreenState extends State<NotificationScreen>
     final response = await w.sendMessageGetResponse({
       "query": "firebase-allsubsubcollections",
       "path": "notifications"
-    }, "user");
+    }, "user",expectedQuery: 'firebase-allsubsubcollections');
 
     final decoded = jsonDecode(response["data"]);
     final Map<String, dynamic> rawMap = decoded["response"];
