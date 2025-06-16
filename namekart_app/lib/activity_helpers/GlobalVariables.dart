@@ -7,9 +7,9 @@ import '../change_notifiers/AllDatabaseChangeNotifiers.dart';
 // Create a class to hold global providers
 class GlobalProviders {
   static late LiveDatabaseChange liveDatabaseChange;
-  static late LiveListDatabaseChange liveListDatabaseChange;
+  static late ReconnectivityNotifier reconnectivityNotifier;
   static late NotificationDatabaseChange notificationDatabaseChange;
-  static late NewNotificationTableAddNotifier newNotificationTableAddNotifier;
+  static late CheckConnectivityNotifier checkConnectivityNotifier;
   static late DatabaseDataUpdatedNotifier databaseDataUpdatedNotifier;
 
   static late String userId;
@@ -17,9 +17,9 @@ class GlobalProviders {
   // Initialize all providers in one method
   static void initialize(BuildContext context) {
     liveDatabaseChange = Provider.of<LiveDatabaseChange>(context, listen: false);
-    liveListDatabaseChange = Provider.of<LiveListDatabaseChange>(context, listen: false);
+    reconnectivityNotifier = Provider.of<ReconnectivityNotifier>(context, listen: false);
     notificationDatabaseChange = Provider.of<NotificationDatabaseChange>(context, listen: false);
-    newNotificationTableAddNotifier = Provider.of<NewNotificationTableAddNotifier>(context, listen: false);
+    checkConnectivityNotifier = Provider.of<CheckConnectivityNotifier>(context, listen: false);
     databaseDataUpdatedNotifier = Provider.of<DatabaseDataUpdatedNotifier>(context, listen: false);
   }
 }
@@ -46,7 +46,6 @@ final Map<String, Widget Function(double)> _iconMap = {
   "biddinglist": (size) => Image.asset("assets/images/home_screen_images/features/biddinglist.png",width: size,height: size,),
   "bulkbid": (size) => Image.asset("assets/images/home_screen_images/features/bulkbid.png",width: size,height: size,),
   "bulkfetch": (size) => Image.asset("assets/images/home_screen_images/features/bulkfetch.png",width: size,height: size,),
-  "leads": (size) => Image.asset("assets/images/home_screen_images/features/leads.png",width: size,height: size,),
   "watchlist": (size) => Image.asset("assets/images/home_screen_images/features/watchlist.png",width: size,height: size,),
   "Bid Activity": (size) => Image.asset("assets/images/notifications_images/BidActivity.jpg",width: size,height: size,),
   "Bot Activity": (size) => Image.asset("assets/images/notifications_images/BotActivity.jpg",width: size,height: size,),

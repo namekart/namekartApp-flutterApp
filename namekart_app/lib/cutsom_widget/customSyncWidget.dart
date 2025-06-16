@@ -44,6 +44,7 @@ class _AlertWidgetState extends State<AlertWidget> {
 
   bool _timerInitialized = false;
 
+  late CheckConnectivityNotifier checkConnectivityNotifier;
 
 
   @override
@@ -51,9 +52,6 @@ class _AlertWidgetState extends State<AlertWidget> {
     super.initState();
 
     if (!_timerInitialized) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _checkConnectivity();
-
         _connectivitySubscription = Connectivity()
             .onConnectivityChanged
             .listen((List<ConnectivityResult> results) {
@@ -66,47 +64,41 @@ class _AlertWidgetState extends State<AlertWidget> {
           }
         });
 
-        _webSocketCheckTimer = Timer.periodic(const Duration(seconds: 20), (timer) async {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          checkConnectivityNotifier = Provider.of<CheckConnectivityNotifier>(context, listen: false);
+
+
+          _webSocketCheckTimer = Timer.periodic(const Duration(seconds: 10), (timer) async {
           if (!mounted) {
             timer.cancel();
             return;
           }
 
-          try {
-            final ws = WebSocketService();
+          bool responseReceived = false;
 
-            final response = await ws.sendMessageGetResponse(
-                {
-              "query": "check-connection",
+          void listener() {
+            responseReceived = true;
+            checkConnectivityNotifier!.removeListener(listener);
+            if (snackbarShowing) {
+              _dismissSnackbar();
             }
-            , "user",expectedQuery: 'check-connection').timeout(
-              const Duration(seconds: 20),
-              onTimeout: () => <String, dynamic>{},
-            );
+          }
 
-            final stillConnected = response.isNotEmpty &&
-                response.containsKey('data') &&
-                jsonDecode(response['data'])['response']
-                    .toString()
-                    .toLowerCase()
-                    .contains("connected");
+          // Add temporary listener for 10 seconds
+          checkConnectivityNotifier!.addListener(listener);
 
-            if (stillConnected) {
-              // If already connected, dismiss any warning
-              if (snackbarShowing) {
-                await _dismissSnackbar();
-              }
-            } else {
-              // Show warning only if connection check failed after timeout
-              if (!snackbarShowing) {
-                await _dismissSnackbar();
-                _showWebSocketSnack();
-              }
-            }
-          } catch (e) {
-            // In case of exceptions, treat as disconnected
+          // 🔁 Send the check message
+          final ws = WebSocketService();
+          ws.sendMessage({
+            "query": "check-connection"
+          });
+
+          // Wait 10 seconds max for response
+          await Future.delayed(const Duration(seconds: 10));
+
+          if (!responseReceived) {
+            checkConnectivityNotifier!.removeListener(listener);
             if (!snackbarShowing) {
-              await _dismissSnackbar();
               _showWebSocketSnack();
             }
           }
@@ -174,66 +166,73 @@ class _AlertWidgetState extends State<AlertWidget> {
               ),
             ),
             Bounceable(
-              onTap: () async {
+                onTap: () async {
+                  if (!reconnecting) {
+                    _dismissSnackbar();
+                    await Future.delayed(const Duration(milliseconds: 100));
+                    _showWebSocketSnack(); // show again with loading
+                  }
 
-                if(reconnecting=false) {
-                  _dismissSnackbar();
-                  await Future.delayed(Duration(milliseconds: 100));
-                  _showWebSocketSnack(); // show again with loading
-                }
-                setState(() {
-                  reconnecting = true;
-                });
-
-                try {
-                  final ws = WebSocketService();
-                  await ws.connect(
-                    GlobalProviders.userId,
-                    Provider.of<LiveDatabaseChange>(context, listen: false),
-                    Provider.of<LiveListDatabaseChange>(context, listen: false),
-                    Provider.of<NotificationDatabaseChange>(context, listen: false),
-                    Provider.of<NewNotificationTableAddNotifier>(context, listen: false),
-                    Provider.of<DatabaseDataUpdatedNotifier>(context, listen: false),
-                    Provider.of<NotifyRebuildChange>(context, listen: false),
-                  ).timeout(const Duration(seconds: 5), onTimeout: () {
-                    throw TimeoutException("WebSocket connection timed out");
+                  setState(() {
+                    reconnecting = true;
                   });
 
-                  // Wait up to 2 seconds for reconnection verification
-                  final responseFuture = ws.sendMessageGetResponse({
-                    "query": "reconnection-check",
-                  }, "user",expectedQuery: 'reconnection-check');
+                  try {
+                    final ws = WebSocketService();
 
+                    await ws.connect(
+                      GlobalProviders.userId,
+                      Provider.of<LiveDatabaseChange>(context, listen: false),
+                      Provider.of<ReconnectivityNotifier>(context, listen: false),
+                      Provider.of<NotificationDatabaseChange>(context, listen: false),
+                      Provider.of<CheckConnectivityNotifier>(context, listen: false),
+                      Provider.of<DatabaseDataUpdatedNotifier>(context, listen: false),
+                      Provider.of<BubbleButtonClickUpdateNotifier>(context, listen: false),
+                      Provider.of<NotificationPathNotifier>(context, listen: false),
+                    ).timeout(const Duration(seconds: 5), onTimeout: () {
+                      throw TimeoutException("WebSocket connection timed out");
+                    });
 
-                  final response = await responseFuture.timeout(
-                    const Duration(seconds: 2),
-                    onTimeout: () =>  <String, dynamic>{},
-                  );
+                    // ✅ Use ReconnectivityNotifier here
+                    final reconnectivityNotifier = Provider.of<ReconnectivityNotifier>(context, listen: false);
 
-                  final reconnected = response != null &&
-                      response.containsKey('data') &&
-                      jsonDecode(response['data'])['response'].toString().contains("reconnected");
+                    bool reconnected = false;
 
-                  if (reconnected) {
-                    WebSocketService.isConnected = true;
-                    widget.onReconnectSuccess(); // fire success callback
-                    _dismissSnackbar(); // remove snackbar
-                  } else {
-                    setState(() {
-                      reconnecting = false;
+                    void listener() {
+                      reconnected = true;
+                      reconnectivityNotifier.removeListener(listener);
+                    }
+
+                    reconnectivityNotifier.addListener(listener);
+
+                    ws.sendMessage({
+                      "query": "reconnection-check"
+                    });
+
+                    // Wait up to 3 seconds for notifier to trigger
+                    await Future.delayed(const Duration(seconds: 3));
+
+                    reconnectivityNotifier.removeListener(listener);
+
+                    if (reconnected) {
+                      WebSocketService.isConnected = true;
+                      widget.onReconnectSuccess();
+                      _dismissSnackbar();
+                    } else {
+                      setState(() {
+                        reconnecting = false;
+                      });
                       _dismissSnackbar();
                       _showWebSocketSnack();
-
+                    }
+                  } catch (e) {
+                    setState(() {
+                      reconnecting = false;
                     });
-                  }
-                } catch (e) {
-                  setState(() {
-                    reconnecting = false;
                     _dismissSnackbar();
                     _showWebSocketSnack();
-                  });
-                }
-              },
+                  }
+                },
               child: Container(
                 decoration: BoxDecoration(
                   color: reconnecting ? Colors.transparent : Color(0xFF3DB070),

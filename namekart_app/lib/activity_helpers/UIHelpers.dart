@@ -6,10 +6,13 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:haptic_feedback/haptic_feedback.dart';
 import 'package:intl/intl.dart';
+import 'package:namekart_app/screens/live_screens/live_details_screen.dart';
+import 'package:provider/provider.dart';
 import 'package:top_snackbar_flutter/custom_snack_bar.dart';
 import 'package:top_snackbar_flutter/top_snack_bar.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../change_notifiers/AllDatabaseChangeNotifiers.dart';
 import '../change_notifiers/WebSocketService.dart';
 import '../cutsom_widget/SuperAnimatedWidget.dart';
 import '../database/HiveHelper.dart';
@@ -67,7 +70,7 @@ List<dynamic> getTodaysDateTime() {
   String dayOfWeek = DateFormat('EEEE').format(now);
   String formattedDate = DateFormat('dd-MM-yyyy').format(now);
 
-  return [dayOfWeek, formattedDate,now];
+  return [dayOfWeek, formattedDate, now];
 }
 
 String getFormattedDate(String dateString) {
@@ -114,145 +117,135 @@ Future<void> launchInBrowser(String url) async {
   }
 }
 
-
-void haptic()async{
+void haptic() async {
   await Haptics.vibrate(HapticsType.success);
 }
 
-Future<void> dynamicDialog(BuildContext context, buttonData,String collectionName,String documentId,int bubbleButtonIndex,String bubbleButtonName,String buttonType,String buttonDomainName) async {
+Future<void> dynamicDialog(
+    BuildContext context,
+    buttonData,
+    String hivedatabasepath,
+    String documentId,
+    int bubbleButtonIndex,
+    String bubbleButtonName,
+    String buttonType,
+    String buttonDomainName) async {
+  final bubbleButtonClickUpdateNotifier =
+      Provider.of<BubbleButtonClickUpdateNotifier>(context, listen: false);
+
   var buttonOnClickData = buttonData['onclick'];
 
-
   if (buttonOnClickData.keys.toString().contains("text")) {
-    var buttonOnClickDataList =
-    buttonOnClickData['text'];
-    var buttonOnClickDataListKeys =
-    buttonOnClickDataList.keys
-        .toList();
+    var buttonOnClickDataList = buttonOnClickData['text'];
+    var buttonOnClickDataListKeys = buttonOnClickDataList.keys.toList();
 
-    showDialog(context: context, builder: (BuildContext context) {
-      return StatefulBuilder(
-          builder: (context,
-              setState) {
-            return AlertDialog(
-                contentPadding:
-                const EdgeInsets
-                    .all(0),
-                backgroundColor:
-                Color(
-                    0xffF5F5F5),
-                content: Container(
-                    width: MediaQuery.of(
-                        context)
-                        .size
-                        .width,
-                    height: 270.sp,
-                    child: Column(
-                        crossAxisAlignment:
-                        CrossAxisAlignment
-                            .start,
-                        children: [
-                          AppBar(
-                            title:
-                            Text(
-                              buttonData[
-                              'button_text'],
-                              style: GoogleFonts.poppins(
-                                  fontSize: 10,
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold),
-                            ),
-                            backgroundColor:
-                            Color(0xffB71C1C),
-                            iconTheme: IconThemeData(
-                                size:
-                                20,
-                                color:
-                                Colors.white),
-                            titleSpacing:
-                            0,
-                            shape: const RoundedRectangleBorder(
-                                borderRadius:
-                                BorderRadius.only(topLeft: Radius.circular(20), topRight: Radius.circular(20))),
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return StatefulBuilder(builder: (context, setState) {
+          return AlertDialog(
+              contentPadding: const EdgeInsets.all(0),
+              backgroundColor: Color(0xffF5F5F5),
+              content: Container(
+                  width: MediaQuery.of(context).size.width,
+                  height: 270.sp,
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        AppBar(
+                          title: Text(
+                            buttonData['button_text'],
+                            style: GoogleFonts.poppins(
+                                fontSize: 10,
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold),
                           ),
-                          SingleChildScrollView(
-                            child: Column(
-                                crossAxisAlignment:
-                                CrossAxisAlignment.start,
-                                children: [
-                                  Padding(
-                                    padding: const EdgeInsets.all(15),
-                                    child: SizedBox(
-                                      width: MediaQuery.of(context).size.width,
-                                      child: ListView.builder(
-                                          shrinkWrap: true,
-                                          itemCount: buttonOnClickDataListKeys.length,
-                                          itemBuilder: (context, buttonOnClickDataListindex) {
-                                            return Padding(
-                                              padding: const EdgeInsets.all(5),
-                                              child: Text(buttonOnClickDataList[buttonOnClickDataListKeys[buttonOnClickDataListindex]], style: (buttonOnClickDataList[buttonOnClickDataListindex] == "h1") ? GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xffB71C1C)) : GoogleFonts.poppins(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.black54)),
-                                            );
-                                          }),
-                                    ),
+                          backgroundColor: Color(0xffB71C1C),
+                          iconTheme:
+                              IconThemeData(size: 20, color: Colors.white),
+                          titleSpacing: 0,
+                          shape: const RoundedRectangleBorder(
+                              borderRadius: BorderRadius.only(
+                                  topLeft: Radius.circular(20),
+                                  topRight: Radius.circular(20))),
+                        ),
+                        SingleChildScrollView(
+                          child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.all(15),
+                                  child: SizedBox(
+                                    width: MediaQuery.of(context).size.width,
+                                    child: ListView.builder(
+                                        shrinkWrap: true,
+                                        itemCount:
+                                            buttonOnClickDataListKeys.length,
+                                        itemBuilder: (context,
+                                            buttonOnClickDataListindex) {
+                                          return Padding(
+                                            padding: const EdgeInsets.all(5),
+                                            child: Text(
+                                                buttonOnClickDataList[
+                                                    buttonOnClickDataListKeys[
+                                                        buttonOnClickDataListindex]],
+                                                style: (buttonOnClickDataList[
+                                                            buttonOnClickDataListindex] ==
+                                                        "h1")
+                                                    ? GoogleFonts.poppins(
+                                                        fontSize: 14,
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                        color:
+                                                            Color(0xffB71C1C))
+                                                    : GoogleFonts.poppins(
+                                                        fontSize: 10,
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                        color: Colors.black54)),
+                                          );
+                                        }),
                                   ),
-                                ]),
-                          )
-                        ])));
-          });
-    },
+                                ),
+                              ]),
+                        )
+                      ])));
+        });
+      },
     );
-  }
-  else if (buttonOnClickData.keys.toString().contains('url')) {
+  } else if (buttonOnClickData.keys.toString().contains('url')) {
     var urlList = buttonOnClickData['url'];
 
-    if(urlList.length==1){
-      launchInBrowser("https://"+urlList[urlList.keys.toList()[0]]);
-    }else {
-      showDialog(context: context, builder: (BuildContext context) {
-        return StatefulBuilder(
-            builder: (context,
-                setState) {
+    if (urlList.length == 1) {
+      launchInBrowser("https://" + urlList[urlList.keys.toList()[0]]);
+    } else {
+      showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return StatefulBuilder(builder: (context, setState) {
               return AlertDialog(
-                  contentPadding:
-                  const EdgeInsets
-                      .all(0),
-                  backgroundColor:
-                  Color(
-                      0xffF5F5F5),
+                  contentPadding: const EdgeInsets.all(0),
+                  backgroundColor: Color(0xffF5F5F5),
                   content: Container(
-                      width: MediaQuery
-                          .of(
-                          context)
-                          .size
-                          .width,
+                      width: MediaQuery.of(context).size.width,
                       height: 270.sp,
                       child: Column(
-                          crossAxisAlignment:
-                          CrossAxisAlignment
-                              .start,
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             AppBar(
-                              title:
-                              Text(
-                                buttonData[
-                                'button_text'],
+                              title: Text(
+                                buttonData['button_text'],
                                 style: GoogleFonts.poppins(
                                     fontSize: 10,
                                     color: Colors.white,
                                     fontWeight: FontWeight.bold),
                               ),
-                              backgroundColor:
-                              Color(0xffB71C1C),
-                              iconTheme: IconThemeData(
-                                  size:
-                                  20,
-                                  color:
-                                  Colors.white),
-                              titleSpacing:
-                              0,
+                              backgroundColor: Color(0xffB71C1C),
+                              iconTheme:
+                                  IconThemeData(size: 20, color: Colors.white),
+                              titleSpacing: 0,
                               shape: const RoundedRectangleBorder(
-                                  borderRadius:
-                                  BorderRadius.only(
+                                  borderRadius: BorderRadius.only(
                                       topLeft: Radius.circular(20),
                                       topRight: Radius.circular(20))),
                             ),
@@ -261,7 +254,7 @@ Future<void> dynamicDialog(BuildContext context, buttonData,String collectionNam
                                 padding: const EdgeInsets.only(top: 20),
                                 child: GridView.builder(
                                   gridDelegate:
-                                  const SliverGridDelegateWithFixedCrossAxisCount(
+                                      const SliverGridDelegateWithFixedCrossAxisCount(
                                     crossAxisCount: 3,
                                     // 3 columns
                                     crossAxisSpacing: 3,
@@ -269,12 +262,11 @@ Future<void> dynamicDialog(BuildContext context, buttonData,String collectionNam
                                     mainAxisSpacing: 1,
                                     // Space between rows
                                     childAspectRatio:
-                                    1.5, // Adjusted to better fit content
+                                        1.5, // Adjusted to better fit content
                                   ),
                                   itemCount: urlList.length,
                                   shrinkWrap: true,
-                                  physics:
-                                  const NeverScrollableScrollPhysics(),
+                                  physics: const NeverScrollableScrollPhysics(),
                                   // Disable scrolling if inside another scrollable widget
                                   itemBuilder: (context, urlButtonIndex) {
                                     // Use a Column or Wrap instead of a nested GridView
@@ -284,16 +276,19 @@ Future<void> dynamicDialog(BuildContext context, buttonData,String collectionNam
                                         onTap: () {},
                                         child: Column(
                                           mainAxisAlignment:
-                                          MainAxisAlignment.center,
+                                              MainAxisAlignment.center,
                                           children: [
-                                            getIconForButton(urlList.keys.toList()[urlButtonIndex],30),
+                                            getIconForButton(
+                                                urlList.keys
+                                                    .toList()[urlButtonIndex],
+                                                30),
                                             const SizedBox(height: 10),
                                             Text(
-                                              urlList.keys.toList()[urlButtonIndex],
+                                              urlList.keys
+                                                  .toList()[urlButtonIndex],
                                               style: GoogleFonts.poppins(
                                                 fontSize: 10,
-                                                fontWeight:
-                                                FontWeight.bold,
+                                                fontWeight: FontWeight.bold,
                                                 color: Colors.black54,
                                               ),
                                               textAlign: TextAlign.center,
@@ -305,66 +300,73 @@ Future<void> dynamicDialog(BuildContext context, buttonData,String collectionNam
                                   },
                                 ),
                               ),
-
                             )
                           ])));
             });
-      });
+          });
     }
-  }
-  else if (buttonOnClickData.toString().contains("send-to-server-get-dialog")){
-    WebSocketService websocketService=new WebSocketService();
+  } else if (buttonOnClickData
+      .toString()
+      .contains("send-to-server-get-dialog")) {
+    WebSocketService websocketService = new WebSocketService();
 
-    String calledDocumentPath="live~$collectionName~auctions~$documentId";
+    String calledDocumentPath = "$hivedatabasepath~$documentId";
 
-    Map<String,String> a={
-      "send-to-server-get-dialog":buttonOnClickData['send-to-server-get-dialog'],
-      "calledDocumentPath":calledDocumentPath,
-      "calledDocumentPathFields":"uiButtons[$bubbleButtonIndex].$bubbleButtonName.onclick",
-      "type":buttonType.toLowerCase()
+    Map<String, String> a = {
+      "send-to-server-get-dialog":
+          buttonOnClickData['send-to-server-get-dialog'],
+      "calledDocumentPath": calledDocumentPath,
+      "calledDocumentPathFields":
+          "uiButtons[$bubbleButtonIndex].$bubbleButtonName.onclick",
+      "type": buttonType.toLowerCase()
     };
 
     //sending response to server imp
-    await websocketService.sendMessageGetResponse(a,"broadcast",expectedQuery: buttonType.toLowerCase()+calledDocumentPath);
+    websocketService.sendMessage(a);
 
-    dynamicDialog(context, HiveHelper.read(calledDocumentPath)['uiButtons'][bubbleButtonIndex][bubbleButtonName],collectionName,documentId,bubbleButtonIndex,bubbleButtonName,buttonType,buttonDomainName);
-  }
-  else if (buttonOnClickData.toString().contains("send-to-server-get-snackbar")){
-    WebSocketService websocketService=new WebSocketService();
-
-    String calledDocumentPath="live~$collectionName~auctions~$documentId";
-
-
-    Map<String,String> a={
-      "send-to-server-get-snackbar":buttonOnClickData['send-to-server-get-snackbar'],
-      "calledDocumentPath":calledDocumentPath,
-      "calledDocumentPathFields":"uiButtons[$bubbleButtonIndex].$bubbleButtonName.onclick",
-      "type":buttonType.toLowerCase()
-    };
-
-    //sending response to server imp
-    await websocketService.sendMessageGetResponse(a,"broadcast",expectedQuery: buttonType.toLowerCase()+calledDocumentPath);
-
-    if(!buttonType.contains("Bid")) {
+    void listener() {
+      print("Notifier triggered");
+      Future.delayed(Duration(milliseconds: 100), () {});
       dynamicDialog(
-          context,
-          HiveHelper.read(
-              calledDocumentPath)['uiButtons'][bubbleButtonIndex][bubbleButtonName],
-          collectionName,
-          documentId,
-          bubbleButtonIndex,
-          bubbleButtonName,
-          buttonType,
-          buttonDomainName);
+        context,
+        HiveHelper.read(calledDocumentPath)['uiButtons'][bubbleButtonIndex]
+            [bubbleButtonName],
+        hivedatabasepath,
+        documentId,
+        bubbleButtonIndex,
+        bubbleButtonName,
+        buttonType,
+        buttonDomainName,
+      );
+      bubbleButtonClickUpdateNotifier.removeListener(listener);
     }
 
-  }
-  else if(buttonOnClickData.toString().contains("openinputbox")){
-    TextEditingController _inputTextFieldController=new TextEditingController();
+    bubbleButtonClickUpdateNotifier.addListener(listener);
+  } else if (buttonOnClickData.toString().contains("send-to-server-get-snackbar")) {
+
+    WebSocketService websocketService = new WebSocketService();
+
+    String calledDocumentPath = "$hivedatabasepath~$documentId";
+
+    Map<String, String> a = {
+      "send-to-server-get-snackbar":
+      buttonOnClickData['send-to-server-get-snackbar'],
+      "calledDocumentPath": calledDocumentPath,
+      "calledDocumentPathFields":
+      "uiButtons[$bubbleButtonIndex].$bubbleButtonName.onclick",
+      "type": buttonType.toLowerCase()
+    };
+
+    //sending response to server imp
+    websocketService.sendMessage(a);
+
+  } else if (buttonOnClickData.toString().contains("openinputbox")) {
+    TextEditingController _inputTextFieldController =
+        new TextEditingController();
     showDialog(
         context: context,
         // Provide the context
-        builder:(BuildContext context) {
+        builder: (BuildContext context) {
           return AlertDialog(
               contentPadding: const EdgeInsets.all(0),
               backgroundColor: Color(0xffF5F5F5),
@@ -383,8 +385,8 @@ Future<void> dynamicDialog(BuildContext context, buttonData,String collectionNam
                                 fontWeight: FontWeight.bold),
                           ),
                           backgroundColor: Color(0xffB71C1C),
-                          iconTheme: IconThemeData(
-                              size: 20, color: Colors.white),
+                          iconTheme:
+                              IconThemeData(size: 20, color: Colors.white),
                           titleSpacing: 0,
                           shape: const RoundedRectangleBorder(
                               borderRadius: BorderRadius.only(
@@ -398,38 +400,28 @@ Future<void> dynamicDialog(BuildContext context, buttonData,String collectionNam
                               height: 50.sp,
                               alignment: Alignment.centerLeft,
                               decoration: BoxDecoration(
-                                  borderRadius:
-                                  BorderRadius.circular(20),
+                                  borderRadius: BorderRadius.circular(20),
                                   color: Colors.white),
                               child: TextField(
                                 controller: _inputTextFieldController,
                                 style: GoogleFonts.poppins(
-                                  fontWeight:
-                                  FontWeight.bold,
+                                  fontWeight: FontWeight.bold,
                                   color: Colors.black45,
                                   fontSize: 10.sp,
-                                  decoration:
-                                  TextDecoration.none,
+                                  decoration: TextDecoration.none,
                                 ),
                                 obscureText: true,
                                 decoration: InputDecoration(
                                     labelText: 'Enter Amount',
-                                    border:
-                                    InputBorder.none,
-                                    labelStyle:
-                                    GoogleFonts.poppins(
-                                      fontWeight:
-                                      FontWeight.bold,
+                                    border: InputBorder.none,
+                                    labelStyle: GoogleFonts.poppins(
+                                      fontWeight: FontWeight.bold,
                                       color: Colors.black45,
                                       fontSize: 10.sp,
-                                      decoration:
-                                      TextDecoration
-                                          .none,
+                                      decoration: TextDecoration.none,
                                     ),
-                                    prefixIcon:
-                                    Icon(Icons.keyboard),
-                                    prefixIconColor:
-                                    Color(0xffB71C1C)),
+                                    prefixIcon: Icon(Icons.keyboard),
+                                    prefixIconColor: Color(0xffB71C1C)),
                               ),
                             ),
                           ),
@@ -438,17 +430,17 @@ Future<void> dynamicDialog(BuildContext context, buttonData,String collectionNam
                           padding: const EdgeInsets.only(right: 20),
                           child: Row(
                               mainAxisAlignment: MainAxisAlignment.end,
-                              children:[
+                              children: [
                                 Bounceable(
-                                  onTap: (){},
+                                  onTap: () {},
                                   child: Container(
                                     decoration: const BoxDecoration(
                                       color: Color(0xffE7E7E7),
                                       borderRadius:
-                                      BorderRadius.all(Radius.circular(10)),
+                                          BorderRadius.all(Radius.circular(10)),
                                     ),
                                     child: Padding(
-                                      padding: const EdgeInsets.all( 15),
+                                      padding: const EdgeInsets.all(15),
                                       child: Text("Done",
                                           style: GoogleFonts.poppins(
                                               color: Colors.black,
@@ -456,60 +448,55 @@ Future<void> dynamicDialog(BuildContext context, buttonData,String collectionNam
                                               fontSize: 10)),
                                     ),
                                   ),
-                                ),]
-                          ),
+                                ),
+                              ]),
                         ),
-
-                      ]
-                  )
-              )
-          );
-        }
-    );
-  }
-  else if(buttonOnClickData.toString().contains("showSnackbar")){
+                      ])));
+        });
+  } else if (buttonOnClickData.toString().contains("showSnackbar")) {
     showTopSnackBar(
       Overlay.of(context),
       displayDuration: Duration(milliseconds: 100),
       animationDuration: Duration(seconds: 1),
       CustomSnackBar.success(
-        message: "\"$buttonDomainName $documentId\" ${buttonOnClickData['showSnackbar']['message']}",
+        message:
+            "\"$buttonDomainName $documentId\" ${buttonOnClickData['showSnackbar']['message']}",
       ),
     );
   }
 }
 
-
-
-Future<void> showConfirmationDialog({
-  required BuildContext context,
-  required VoidCallback onConfirm,
-  required String title,
-  required String content,
-  required String snackBarMessage
-}) async {
+Future<void> showConfirmationDialog(
+    {required BuildContext context,
+    required VoidCallback onConfirm,
+    required String title,
+    required String content,
+    required String snackBarMessage}) async {
   return showDialog<void>(
     context: context,
     barrierDismissible: false, // Prevents closing by tapping outside
     builder: (BuildContext context) {
       return AlertDialog(
-        title: Text(title,style: GoogleFonts.poppins(
-          fontWeight: FontWeight.bold,
-          color: Colors.black,
-          fontSize: 10
-        ),),
-        content: Text(content,style: GoogleFonts.poppins(
-            fontWeight: FontWeight.normal,
-            color: Colors.black,
-            fontSize: 10
-        ),),
+        title: Text(
+          title,
+          style: GoogleFonts.poppins(
+              fontWeight: FontWeight.bold, color: Colors.black, fontSize: 10),
+        ),
+        content: Text(
+          content,
+          style: GoogleFonts.poppins(
+              fontWeight: FontWeight.normal, color: Colors.black, fontSize: 10),
+        ),
         actions: <Widget>[
           TextButton(
             onPressed: () => Navigator.of(context).pop(), // Close dialog
-            child: Text('Cancel',style: GoogleFonts.poppins(
-                fontWeight: FontWeight.bold,
-                color: Colors.black,
-                fontSize: 10),),
+            child: Text(
+              'Cancel',
+              style: GoogleFonts.poppins(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black,
+                  fontSize: 10),
+            ),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
@@ -526,13 +513,15 @@ Future<void> showConfirmationDialog({
                 ),
               );
 
-
 // Call the confirmation handler
             },
-            child: Text('Delete',style: GoogleFonts.poppins(
-                fontWeight: FontWeight.bold,
-                color: Colors.black,
-                fontSize: 10),),
+            child: Text(
+              'Delete',
+              style: GoogleFonts.poppins(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black,
+                  fontSize: 10),
+            ),
           ),
         ],
       );

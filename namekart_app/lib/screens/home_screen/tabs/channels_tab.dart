@@ -7,8 +7,10 @@ import 'package:flutter_bounceable/flutter_bounceable.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:haptic_feedback/haptic_feedback.dart';
+import 'package:namekart_app/activity_helpers/GlobalFunctions.dart';
 import 'package:provider/provider.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:sqflite/sqflite.dart';
 
 import '../../../activity_helpers/FirestoreHelper.dart';
 import '../../../activity_helpers/UIHelpers.dart';
@@ -20,14 +22,14 @@ import '../../../fcm/FcmHelper.dart';
 import '../../live_screens/live_details_screen.dart';
 
 
-class NotificationsTab extends StatefulWidget {
-  const NotificationsTab({super.key});
+class ChannelsTab extends StatefulWidget {
+  const ChannelsTab({super.key});
 
   @override
-  State<NotificationsTab> createState() => _NotificationsTabState();
+  State<ChannelsTab> createState() => _ChannelsTabState();
 }
 
-class _NotificationsTabState extends State<NotificationsTab> with WidgetsBindingObserver {
+class _ChannelsTabState extends State<ChannelsTab> with WidgetsBindingObserver {
   late Future<List<Map<String, dynamic>>> data;
   List<Map<String, dynamic>> dataList = [];
 
@@ -42,6 +44,8 @@ class _NotificationsTabState extends State<NotificationsTab> with WidgetsBinding
   Map<String, bool> isExpandedMap = {};
   Map<String, List<String>> parsedMap = {};
 
+  late NotificationPathNotifier notificationPathNotifier;
+
   @override
   void initState() {
     super.initState();
@@ -49,40 +53,89 @@ class _NotificationsTabState extends State<NotificationsTab> with WidgetsBinding
     _scrollController = ScrollController();
     _fcmHelper = FCMHelper();
 
-    getSubCollections();
+    getAllData();
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final notificationDatabaseChange =
-      Provider.of<NotificationDatabaseChange>(context, listen: false);
-      notificationDatabaseChange.addListener(getAllData);
+      notificationPathNotifier = Provider.of<NotificationPathNotifier>(context, listen: false);
+      notificationPathNotifier.addListener(getAllData);
     });
 
-    getAllData();
+    WebSocketService w = WebSocketService();
+    w.sendMessage({
+      "query": "firebase-all_collection_info",
+    });
 
   }
 
+
   void getAllData() async {
-    WebSocketService w = WebSocketService();
-    final response = await w.sendMessageGetResponse({
-      "query": "firebase-allsubsubcollections",
-      "path": "notifications"
-    }, "user",expectedQuery: 'firebase-allsubsubcollections');
+    print("called");
+    try {
+      final readedData = await readAllCloudPath();
+      if (readedData == null) throw Exception("No data found.");
 
-    final decoded = jsonDecode(response["data"]);
-    final Map<String, dynamic> rawMap = decoded["response"];
+      print('📄 Raw readedData: $readedData');
 
-    final sortedMap = Map.fromEntries(
-      rawMap.entries.toList()
-        ..sort((a, b) => a.key.toLowerCase().compareTo(b.key.toLowerCase())),
-    );
+      final outerDecoded = jsonDecode(readedData);
+      if (outerDecoded is! Map<String, dynamic>) throw Exception("Outer data is not a Map");
 
-    setState(() {
-      parsedMap = sortedMap.map(
-            (key, value) => MapEntry(key, List<String>.from(value)),
+      dynamic dataField = outerDecoded['data'];
+      Map<String, dynamic> innerDecoded;
+
+      if (dataField is String) {
+        innerDecoded = jsonDecode(dataField);
+      } else if (dataField is Map<String, dynamic>) {
+        innerDecoded = dataField;
+      } else {
+        throw Exception("Invalid format in 'data'");
+      }
+
+      dynamic responseRaw = innerDecoded['response'];
+      List<dynamic> responseList;
+
+      if (responseRaw is String) {
+        responseList = jsonDecode(responseRaw);
+      } else if (responseRaw is List) {
+        responseList = responseRaw;
+      } else {
+        throw Exception("Invalid format in 'response'");
+      }
+
+      final Map<String, List<String>> parsedMap = {};
+
+      for (var item in responseList) {
+        if (item is String) {
+          final parts = item.split("~");
+          if (parts[0] == "notifications") {
+            final channel = parts[1];
+            final subCollection = parts[2];
+
+            parsedMap[channel] ??= [];
+            if (!parsedMap[channel]!.contains(subCollection)) {
+              parsedMap[channel]!.add(subCollection);
+            }
+          }
+        }
+      }
+
+      final sortedMap = Map.fromEntries(
+        parsedMap.entries.toList()..sort((a, b) => a.key.compareTo(b.key)),
       );
-      isExpandedMap = {
-        for (var key in parsedMap.keys) key: true,
-      };
-    });
+
+      if (mounted) {
+        setState(() {
+          this.parsedMap = sortedMap;
+          isExpandedMap = {
+            for (var key in parsedMap.keys) key: true,
+          };
+        });
+      }
+
+      print("✅ Parsed: $parsedMap");
+
+    } catch (e, st) {
+      print("❌ Error in getAllData: $e\n$st");
+    }
   }
 
   void getSubCollections() async {
@@ -209,8 +262,8 @@ class _NotificationsTabState extends State<NotificationsTab> with WidgetsBinding
                                               ? const EdgeInsets.only(top: 20)
                                               : const EdgeInsets.only(top: 10),
                                           child: Bounceable(
-                                            onTap: () {
-                                              Navigator.push(
+                                            onTap: () async {
+                                              await Navigator.push(
                                                 context,
                                                 PageRouteBuilder(
                                                   pageBuilder: (context, animation, secondaryAnimation) {
@@ -224,6 +277,10 @@ class _NotificationsTabState extends State<NotificationsTab> with WidgetsBinding
                                                   },
                                                 ),
                                               );
+
+                                              print("returnsdff");
+                                              getAllData();  // or any function you want
+
                                             },
                                             child: Container(
                                               padding: const EdgeInsets.all(15),

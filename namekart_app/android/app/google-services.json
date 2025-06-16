@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "185739652699",
-    "project_id": "namekartapp",
-    "storage_bucket": "namekartapp.firebasestorage.app"
+    "project_number": "955119954547",
+    "project_id": "namekart-cloud",
+    "storage_bucket": "namekart-cloud.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:185739652699:android:32634d2d2c61e4079f997e",
+        "mobilesdk_app_id": "1:955119954547:android:d619a393d1ca31d2381806",
         "android_client_info": {
           "package_name": "com.example.namekart_app"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyBEmW0rgj5-m9n3XnMD-RSXkakYEVKRWCI"
+          "current_key": "AIzaSyBzWkvuRQoTcWLE2bxGWl2d0Lizs_2vTWQ"
         }
       ],
       "services": {

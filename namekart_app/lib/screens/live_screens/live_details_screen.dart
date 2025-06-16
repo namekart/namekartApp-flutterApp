@@ -1,10 +1,8 @@
 import 'dart:async';
-import 'dart:convert';
 import 'package:calendar_timeline/calendar_timeline.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:icons_plus/icons_plus.dart';
 import 'package:namekart_app/activity_helpers/FirestoreHelper.dart';
 import 'package:namekart_app/activity_helpers/GlobalFunctions.dart';
 import 'package:namekart_app/cutsom_widget/CalendarSlider.dart';
@@ -12,7 +10,6 @@ import 'package:namekart_app/database/HiveHelper.dart';
 import 'package:namekart_app/fcm/FcmHelper.dart';
 import 'package:provider/provider.dart';
 import 'package:text_scroll/text_scroll.dart';
-import 'package:top_snackbar_flutter/custom_snack_bar.dart';
 import 'package:top_snackbar_flutter/safe_area_values.dart';
 import 'package:top_snackbar_flutter/top_snack_bar.dart';
 import 'package:visibility_detector/visibility_detector.dart';
@@ -20,7 +17,6 @@ import '../../change_notifiers/AllDatabaseChangeNotifiers.dart';
 import '../../activity_helpers/GlobalVariables.dart';
 import '../../activity_helpers/UIHelpers.dart';
 import '../../change_notifiers/WebSocketService.dart';
-import '../../cutsom_widget/AuctionListItem.dart';
 import '../../cutsom_widget/customSyncWidget.dart';
 
 class LiveDetailsScreen extends StatefulWidget {
@@ -50,9 +46,7 @@ class _LiveDetailsScreenState extends State<LiveDetailsScreen>
   String dateCurrent = "";
   String datePast = "";
 
-  late RebuildNotifier rebuildNotifier;
   late LiveDatabaseChange liveDatabaseChange;
-  late LiveListDatabaseChange liveListDatabaseChange;
   late DatabaseDataUpdatedNotifier databaseDataUpdatedNotifier;
 
   late int lastIndexOfList = 0;
@@ -133,16 +127,9 @@ class _LiveDetailsScreenState extends State<LiveDetailsScreen>
   }
 
   Future<bool> syncToFirestore() async {
-    WebSocketService w = WebSocketService();
+    String datetime_id = HiveHelper.getLast(hiveDatabasePath)?['datetime_id'];
 
-    final response = await w.sendMessageGetResponse(
-        {"query": "database-sync", "path": hiveDatabasePath}, "user",expectedQuery: 'database-sync');
-
-    await syncFirestoreFromDocIdRange(
-        hiveDatabasePath,
-        int.parse(await HiveHelper.getLast(hiveDatabasePath)!['id']),
-        int.parse(jsonDecode(response['data'])['response']),
-        false);
+    await syncFirestoreFromDocIdTimestamp(hiveDatabasePath, datetime_id, false);
 
     if (syncFirebaseController != null) {
       syncFirebaseController!.reverse();
@@ -209,6 +196,12 @@ class _LiveDetailsScreenState extends State<LiveDetailsScreen>
     searchText = searchQueryController.text;
   }
 
+  void resetButtonLoading() {
+    setState(() {
+      buttonloading = "";
+    });
+  }
+
   void scrollToBottom() {
     Future.delayed(const Duration(milliseconds: 300), () {
       if (_scrollController.hasClients) {
@@ -261,9 +254,7 @@ class _LiveDetailsScreenState extends State<LiveDetailsScreen>
     _enterAmountController.removeListener(getEnteredCustomAmount);
     _enterAmountController.dispose();
     _subscriptionForButtons?.cancel();
-    rebuildNotifier.removeListener(() {});
     liveDatabaseChange.removeListener(fetchNewAuction);
-    liveListDatabaseChange.removeListener(fetchNewAuction);
     databaseDataUpdatedNotifier.removeListener(updateChangesAndUI);
     super.dispose();
   }
@@ -583,11 +574,11 @@ class _LiveDetailsScreenState extends State<LiveDetailsScreen>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if(widget.showHighlightsButton)
-            Padding(
-              padding: const EdgeInsets.only(left: 20, top: 10, bottom: 10),
-              child: buildTabSwitcher(),
-            ),
+            if (widget.showHighlightsButton)
+              Padding(
+                padding: const EdgeInsets.only(left: 20, top: 10, bottom: 10),
+                child: buildTabSwitcher(),
+              ),
             if (auctions.isEmpty)
               Column(
                 children: [
@@ -706,7 +697,6 @@ class _LiveDetailsScreenState extends State<LiveDetailsScreen>
                               itemId = auctions[index]['id'].toString();
                               path = '$hiveDatabasePath~$itemId';
 
-                              markAuctionAsReadLocallyAndInDB(index, path);
                               await HiveHelper.markAsRead(path);
                             }
                           },
@@ -719,28 +709,6 @@ class _LiveDetailsScreenState extends State<LiveDetailsScreen>
                               Column(
                                 crossAxisAlignment: CrossAxisAlignment.end,
                                 children: [
-                                  if (readStatus == "no")
-                                    Padding(
-                                      padding:
-                                          const EdgeInsets.only(right: 18.0),
-                                      child: Container(
-                                        width: 100.sp,
-                                        decoration: const BoxDecoration(
-                                          color: Color(0xff4CAF50),
-                                          borderRadius: BorderRadius.only(
-                                              topLeft: Radius.circular(20),
-                                              topRight: Radius.circular(20)),
-                                        ),
-                                        padding: const EdgeInsets.all(10),
-                                        alignment: Alignment.center,
-                                        child: Text("New",
-                                            style: GoogleFonts.poppins(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 8.sp,
-                                              color: Colors.white,
-                                            )),
-                                      ),
-                                    ),
                                   if (ringStatus)
                                     GestureDetector(
                                       onTap: () async {
@@ -748,16 +716,16 @@ class _LiveDetailsScreenState extends State<LiveDetailsScreen>
                                             new WebSocketService();
 
                                         Map<String, String> a = {
-                                          "update-data-of-path": "update-data-of-path",
-                                          "calledDocumentPath": path, "calledDocumentPathFields":
-                                          "device_notification[3].ringAlarm",
+                                          "update-data-of-path":
+                                              "update-data-of-path",
+                                          "calledDocumentPath": path,
+                                          "calledDocumentPathFields":
+                                              "device_notification[3].ringAlarm",
                                           "type": "ringAlarmFalse"
                                         };
 
                                         //sending response to server imp
-                                        await websocketService
-                                            .sendMessageGetResponse(
-                                                a, "broadcast",expectedQuery: 'ringAlarmFalse$path');
+                                        websocketService.sendMessage(a);
 
                                         setState(() {
                                           fetchDataByDate(
@@ -835,106 +803,131 @@ class _LiveDetailsScreenState extends State<LiveDetailsScreen>
                                                 fontWeight: FontWeight.w400,
                                                 color: Color(0xff3F3F41),
                                               ),
-                                              if (appBarTitle
-                                                  .contains("Highlights"))
-                                                GestureDetector(
-                                                    onTap: () {
-                                                      haptic();
-                                                      TextEditingController
-                                                          _inputTextFieldController =
-                                                          new TextEditingController();
-                                                      showDialog(
-                                                          context: context,
-                                                          // Provide the context
-                                                          builder: (BuildContext
-                                                              context) {
-                                                            return AlertDialog(
-                                                                contentPadding:
-                                                                    const EdgeInsets
-                                                                        .all(0),
-                                                                backgroundColor:
-                                                                    Color(
-                                                                        0xffF5F5F5),
-                                                                content:
-                                                                    Container(
-                                                                        width: MediaQuery.of(context)
-                                                                            .size
-                                                                            .width,
-                                                                        height: 200
-                                                                            .sp,
-                                                                        child: Column(
-                                                                            crossAxisAlignment:
-                                                                                CrossAxisAlignment.start,
-                                                                            children: [
-                                                                              AppBar(
-                                                                                title: Text(
-                                                                                  "Enter First Row Value To Sort",
-                                                                                  style: GoogleFonts.poppins(fontSize: 8, color: Colors.white, fontWeight: FontWeight.bold),
+                                              Row(
+                                                children: [
+                                                  if (readStatus == "no")
+                                                    Padding(
+                                                      padding:
+                                                          const EdgeInsets.only(
+                                                              right: 18.0),
+                                                      child: Container(
+                                                        decoration:
+                                                            const BoxDecoration(
+                                                          color:
+                                                              Color(0xff4CAF50),
+                                                          shape:
+                                                              BoxShape.circle,
+                                                        ),
+                                                        padding:
+                                                            const EdgeInsets
+                                                                .all(3),
+                                                      ),
+                                                    ),
+                                                  if (appBarTitle
+                                                      .contains("Highlights"))
+                                                    GestureDetector(
+                                                        onTap: () {
+                                                          haptic();
+                                                          TextEditingController
+                                                              _inputTextFieldController =
+                                                              new TextEditingController();
+                                                          showDialog(
+                                                              context: context,
+                                                              // Provide the context
+                                                              builder:
+                                                                  (BuildContext
+                                                                      context) {
+                                                                return AlertDialog(
+                                                                    contentPadding:
+                                                                        const EdgeInsets
+                                                                            .all(
+                                                                            0),
+                                                                    backgroundColor:
+                                                                        Color(
+                                                                            0xffF5F5F5),
+                                                                    content: Container(
+                                                                        width: MediaQuery.of(context).size.width,
+                                                                        height: 200.sp,
+                                                                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                                                          AppBar(
+                                                                            title:
+                                                                                Text(
+                                                                              "Enter First Row Value To Sort",
+                                                                              style: GoogleFonts.poppins(fontSize: 8, color: Colors.white, fontWeight: FontWeight.bold),
+                                                                            ),
+                                                                            backgroundColor:
+                                                                                Color(0xffB71C1C),
+                                                                            iconTheme:
+                                                                                IconThemeData(size: 20, color: Colors.white),
+                                                                            titleSpacing:
+                                                                                0,
+                                                                            shape:
+                                                                                const RoundedRectangleBorder(borderRadius: BorderRadius.only(topLeft: Radius.circular(20), topRight: Radius.circular(20))),
+                                                                          ),
+                                                                          Container(
+                                                                            child:
+                                                                                Padding(
+                                                                              padding: const EdgeInsets.all(20),
+                                                                              child: Container(
+                                                                                height: 50.sp,
+                                                                                alignment: Alignment.centerLeft,
+                                                                                decoration: BoxDecoration(borderRadius: BorderRadius.circular(20), color: Colors.white),
+                                                                                child: TextField(
+                                                                                  controller: _inputTextFieldController,
+                                                                                  style: GoogleFonts.poppins(
+                                                                                    fontWeight: FontWeight.bold,
+                                                                                    color: Colors.black45,
+                                                                                    fontSize: 12.sp,
+                                                                                  ),
+                                                                                  decoration: InputDecoration(labelText: 'i.e Age 6 or modoo.blog or price 10', border: InputBorder.none, labelStyle: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: Colors.black45, fontSize: 8.sp), prefixIcon: Icon(Icons.keyboard), prefixIconColor: Color(0xffB71C1C)),
                                                                                 ),
-                                                                                backgroundColor: Color(0xffB71C1C),
-                                                                                iconTheme: IconThemeData(size: 20, color: Colors.white),
-                                                                                titleSpacing: 0,
-                                                                                shape: const RoundedRectangleBorder(borderRadius: BorderRadius.only(topLeft: Radius.circular(20), topRight: Radius.circular(20))),
                                                                               ),
-                                                                              Container(
-                                                                                child: Padding(
-                                                                                  padding: const EdgeInsets.all(20),
-                                                                                  child: Container(
-                                                                                    height: 50.sp,
-                                                                                    alignment: Alignment.centerLeft,
-                                                                                    decoration: BoxDecoration(borderRadius: BorderRadius.circular(20), color: Colors.white),
-                                                                                    child: TextField(
-                                                                                      controller: _inputTextFieldController,
-                                                                                      style: GoogleFonts.poppins(
-                                                                                        fontWeight: FontWeight.bold,
-                                                                                        color: Colors.black45,
-                                                                                        fontSize: 12.sp,
-                                                                                      ),
-                                                                                      decoration: InputDecoration(labelText: 'i.e Age 6 or modoo.blog or price 10', border: InputBorder.none, labelStyle: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: Colors.black45, fontSize: 8.sp), prefixIcon: Icon(Icons.keyboard), prefixIconColor: Color(0xffB71C1C)),
-                                                                                    ),
+                                                                            ),
+                                                                          ),
+                                                                          Padding(
+                                                                            padding:
+                                                                                const EdgeInsets.only(right: 20),
+                                                                            child:
+                                                                                Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+                                                                              GestureDetector(
+                                                                                onTap: () {
+                                                                                  haptic();
+                                                                                  print(auctions[index]['data']);
+
+                                                                                  setState(() {
+                                                                                    auctions[index]['data'] = autosort(
+                                                                                      auctions[index]['data'],
+                                                                                      _inputTextFieldController.text,
+                                                                                    );
+
+                                                                                    print(auctions[index]['data']);
+                                                                                  });
+
+                                                                                  Navigator.pop(context);
+                                                                                },
+                                                                                child: Container(
+                                                                                  decoration: const BoxDecoration(
+                                                                                    color: Color(0xffE7E7E7),
+                                                                                    borderRadius: BorderRadius.all(Radius.circular(10)),
+                                                                                  ),
+                                                                                  child: Padding(
+                                                                                    padding: const EdgeInsets.all(10),
+                                                                                    child: Text("Sort", style: GoogleFonts.poppins(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 10)),
                                                                                   ),
                                                                                 ),
                                                                               ),
-                                                                              Padding(
-                                                                                padding: const EdgeInsets.only(right: 20),
-                                                                                child: Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-                                                                                  GestureDetector(
-                                                                                    onTap: () {
-                                                                                      haptic();
-                                                                                      print(auctions[index]['data']);
-
-                                                                                      setState(() {
-                                                                                        auctions[index]['data'] = autosort(
-                                                                                          auctions[index]['data'],
-                                                                                          _inputTextFieldController.text,
-                                                                                        );
-
-                                                                                        print(auctions[index]['data']);
-                                                                                      });
-
-                                                                                      Navigator.pop(context);
-                                                                                    },
-                                                                                    child: Container(
-                                                                                      decoration: const BoxDecoration(
-                                                                                        color: Color(0xffE7E7E7),
-                                                                                        borderRadius: BorderRadius.all(Radius.circular(10)),
-                                                                                      ),
-                                                                                      child: Padding(
-                                                                                        padding: const EdgeInsets.all(10),
-                                                                                        child: Text("Sort", style: GoogleFonts.poppins(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 10)),
-                                                                                      ),
-                                                                                    ),
-                                                                                  ),
-                                                                                ]),
-                                                                              ),
-                                                                            ])));
-                                                          });
-                                                    },
-                                                    child: const Icon(
-                                                      Icons
-                                                          .compare_arrows_outlined,
-                                                      size: 18,
-                                                    ))
+                                                                            ]),
+                                                                          ),
+                                                                        ])));
+                                                              });
+                                                        },
+                                                        child: const Icon(
+                                                          Icons
+                                                              .compare_arrows_outlined,
+                                                          size: 18,
+                                                        ))
+                                                ],
+                                              )
                                             ],
                                           ),
                                           SizedBox(height: 5.h),
@@ -971,11 +964,37 @@ class _LiveDetailsScreenState extends State<LiveDetailsScreen>
                                                     children: items
                                                         .map(
                                                           (item) => Padding(
-                                                            padding: EdgeInsets
-                                                                .symmetric(
-                                                                    vertical:
-                                                                        8.h),
-                                                            child: Center(
+                                                            padding:
+                                                                const EdgeInsets
+                                                                    .all(3),
+                                                            child: Container(
+                                                              padding: EdgeInsets
+                                                                  .symmetric(
+                                                                      vertical:
+                                                                          6.h,
+                                                                      horizontal:
+                                                                          10.w),
+                                                              decoration:
+                                                                  BoxDecoration(
+                                                                color: Colors
+                                                                    .white,
+                                                                borderRadius:
+                                                                    BorderRadius
+                                                                        .circular(
+                                                                            8),
+                                                                boxShadow: [
+                                                                  BoxShadow(
+                                                                    color: Colors
+                                                                        .grey
+                                                                        .shade300,
+                                                                    blurRadius:
+                                                                        0.5,
+                                                                  ),
+                                                                ],
+                                                              ),
+                                                              alignment:
+                                                                  Alignment
+                                                                      .center,
                                                               child: TextScroll(
                                                                 item,
                                                                 velocity: Velocity(
@@ -983,14 +1002,14 @@ class _LiveDetailsScreenState extends State<LiveDetailsScreen>
                                                                         Offset(
                                                                             10,
                                                                             10)),
-                                                                style:
-                                                                    GoogleFonts
-                                                                        .poppins(
-                                                                  fontSize:
-                                                                      10.sp,
-                                                                  color: Colors
-                                                                      .black87,
-                                                                ),
+                                                                style: GoogleFonts.poppins(
+                                                                    fontSize:
+                                                                        7.sp,
+                                                                    color: Color(
+                                                                        0xff717171),
+                                                                    fontWeight:
+                                                                        FontWeight
+                                                                            .w400),
                                                               ),
                                                             ),
                                                           ),
@@ -1042,15 +1061,14 @@ class _LiveDetailsScreenState extends State<LiveDetailsScreen>
                                                               ),
                                                             ],
                                                           ),
-                                                          child: Text(
-                                                            item.trim(),
-                                                            style: GoogleFonts
-                                                                .poppins(
-                                                              fontSize: 8.sp,
-                                                              color:
-                                                                  Colors.black,
-                                                            ),
-                                                          ),
+                                                          child: text(
+                                                              text: item.trim(),
+                                                              size: 7.sp,
+                                                              color: Color(
+                                                                  0xff717171),
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w400),
                                                         ),
                                                       )
                                                       .toList(),
@@ -1083,13 +1101,14 @@ class _LiveDetailsScreenState extends State<LiveDetailsScreen>
                                                   return GestureDetector(
                                                     onTap: () async {
                                                       setState(() {
-                                                        buttonloading = "${auctionItem['id']} + ${buttonData.keys.toList()[0]}";
+                                                        buttonloading =
+                                                            "${auctionItem['id']} + ${buttonData.keys.toList()[0]}";
                                                       });
 
                                                       await dynamicDialog(
                                                           context,
                                                           button,
-                                                          widget.subCollection,
+                                                          hiveDatabasePath,
                                                           auctionItem['id']
                                                               .toString(),
                                                           int.parse(buttonData
@@ -1105,24 +1124,20 @@ class _LiveDetailsScreenState extends State<LiveDetailsScreen>
                                                           buttonText,
                                                           data['h1']!);
 
-                                                      syncFirestoreFromDocIdRange(
-                                                          await HiveHelper.getLast(
-                                                                  hiveDatabasePath)![
-                                                              'id'],
-                                                          int.parse(auctionItem[
-                                                                  'id']) -
-                                                              1,
-                                                          int.parse(auctionItem[
-                                                              'id']),
-                                                          true);
+                                                      await syncFirestoreFromDocIdTimestamp(
+                                                          hiveDatabasePath,
+                                                          HiveHelper.getLast(
+                                                                  hiveDatabasePath)?[
+                                                              'datetime_id'],
+                                                          false);
 
                                                       setState(() {
                                                         fetchDataByDate(
                                                             calenderSelectedDate
                                                                 .formattedDate,
                                                             false);
-
                                                       });
+                                                      resetButtonLoading();
 
                                                       haptic();
                                                     },
@@ -1132,17 +1147,30 @@ class _LiveDetailsScreenState extends State<LiveDetailsScreen>
                                                               5),
                                                       child: Column(
                                                         children: [
-                                                          if (buttonloading.contains("${auctionItem['id']} + ${buttonData.keys.toList()[0]}"))
+                                                          if (buttonloading
+                                                              .contains(
+                                                                  "${auctionItem['id']} + ${buttonData.keys.toList()[0]}"))
                                                             const SizedBox(
                                                                 width: 10,
                                                                 height: 10,
-                                                                child: CircularProgressIndicator(color: Colors.black54,))
+                                                                child:
+                                                                    CircularProgressIndicator(
+                                                                  color: Colors
+                                                                      .black54,
+                                                                ))
                                                           else
                                                             Column(
                                                               children: [
-                                                                getIconForButton(
-                                                                    buttonText,
-                                                                    15),
+                                                                ColorFiltered(
+                                                                  colorFilter: ColorFilter.mode(
+                                                                      Color(
+                                                                          0xff717171),
+                                                                      BlendMode
+                                                                          .srcIn),
+                                                                  child: getIconForButton(
+                                                                      buttonText,
+                                                                      15),
+                                                                ),
                                                                 SizedBox(
                                                                     height: 10),
                                                                 text(
@@ -1153,7 +1181,7 @@ class _LiveDetailsScreenState extends State<LiveDetailsScreen>
                                                                   fontWeight:
                                                                       FontWeight
                                                                           .w300,
-                                                                  size: 8.sp,
+                                                                  size: 7.sp,
                                                                 ),
                                                               ],
                                                             ),
@@ -1180,52 +1208,45 @@ class _LiveDetailsScreenState extends State<LiveDetailsScreen>
                                           ),
 
                                           if (actionDoneList != null)
-                                            Container(
-                                              width: MediaQuery.of(context)
-                                                  .size
-                                                  .width,
+                                            Padding(
+                                              padding: const EdgeInsets.only(top: 8.0),
                                               child: Wrap(
-                                                  alignment: WrapAlignment
-                                                      .spaceBetween,
-                                                  spacing: 10,
+                                                  alignment: WrapAlignment.start,
+                                                  spacing: 5,
                                                   runSpacing: 5,
                                                   children: (actionDoneList
                                                           as List<dynamic>)
-                                                      .map<Widget>(
-                                                          (actionDone) {
+                                                      .map<Widget>((actionDone) {
                                                     return Container(
-                                                      width: 80.sp,
+                                                      width: 70.sp,
                                                       decoration: BoxDecoration(
-                                                        color: Colors.black12,
+                                                        color: Colors.white,
+                                                        boxShadow: [
+                                                          BoxShadow(
+                                                            color: Colors
+                                                                .grey.shade300,
+                                                            blurRadius: 0.5,
+                                                          )
+                                                        ],
                                                         borderRadius:
                                                             BorderRadius.only(
                                                                 topLeft: Radius
-                                                                    .circular(
-                                                                        10),
-                                                                bottomRight: Radius
-                                                                    .circular(
-                                                                        10)),
+                                                                    .circular(10),
+                                                                bottomRight:
+                                                                    Radius
+                                                                        .circular(
+                                                                            10)),
                                                       ),
-                                                      padding:
-                                                          EdgeInsets.all(10),
-                                                      alignment:
-                                                          Alignment.center,
-                                                      child: TextScroll(
-                                                        actionDone.toString(),
-                                                        velocity: Velocity(
-                                                            pixelsPerSecond:
-                                                                Offset(10, 0)),
-                                                        delayBefore: Duration(
-                                                            seconds: 5),
-                                                        intervalSpaces: 10,
-                                                        style:
-                                                            GoogleFonts.poppins(
-                                                          fontSize: 8,
-                                                          color: Colors.black54,
+                                                      padding: EdgeInsets.all(10),
+                                                      alignment: Alignment.center,
+                                                      child: text(
+                                                          text: actionDone
+                                                              .toString(),
+                                                          size: 7.sp,
+                                                          color:
+                                                              Color(0xff717171),
                                                           fontWeight:
-                                                              FontWeight.bold,
-                                                        ),
-                                                      ),
+                                                              FontWeight.w400),
                                                     );
                                                   }).toList()),
                                             ),
@@ -1279,21 +1300,6 @@ class _LiveDetailsScreenState extends State<LiveDetailsScreen>
         ),
       ),
     );
-  }
-
-  void markAuctionAsReadLocallyAndInDB(int index, path) async {
-    final item = auctions[index];
-
-    if (item['read'] == 'yes') return; // Already read, skip
-
-    // 1. Update in-memory list
-    auctions[index]['read'] = 'yes';
-
-    if (seenCounter >= 0) {
-      seenCounter -= 1;
-    }
-    // 3. Trigger UI update
-    setState(() {});
   }
 
   void markItemAsRead(String itemId) {}
@@ -1360,7 +1366,7 @@ class _LiveDetailsScreenState extends State<LiveDetailsScreen>
         isLive = !isLive;
       }
 
-      if(widget.showHighlightsButton) {
+      if (widget.showHighlightsButton) {
         if (hightlightTitle == "Highlights") {
           auctions.clear();
           widget.subSubCollection = "highlights";

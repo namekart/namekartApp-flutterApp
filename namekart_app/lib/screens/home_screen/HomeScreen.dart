@@ -1,15 +1,19 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bounceable/flutter_bounceable.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flashy_tab_bar2/flashy_tab_bar2.dart';
 import 'package:namekart_app/screens/home_screen/tabs/ProfileTab.dart';
 import 'package:namekart_app/screens/home_screen/tabs/home_tab.dart';
-import 'package:namekart_app/screens/home_screen/tabs/notifications_tab.dart';
+import 'package:namekart_app/screens/home_screen/tabs/channels_tab.dart';
+import 'package:provider/provider.dart';
 
+import '../../activity_helpers/GlobalVariables.dart';
+import '../../change_notifiers/AllDatabaseChangeNotifiers.dart';
+import '../../change_notifiers/WebSocketService.dart';
 import '../../cutsom_widget/customSyncWidget.dart';
-import '../notifications_screen/NotificationScreen.dart';
 import 'helpdesk/HelpDesk.dart';
-
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -23,14 +27,28 @@ class _HomeScreenState extends State<HomeScreen> {
 
   final List<Widget> _tabs = [
     const HomeTab(),
-    const NotificationsTab(),
+    const ChannelsTab(),
     ProfileTab(),
   ];
-
   @override
   void initState() {
     // TODO: implement initState
     super.initState();
+
+    connectToWebsocket();
+  }
+
+  void connectToWebsocket() async {
+    await WebSocketService().connect(
+      GlobalProviders.userId,
+      Provider.of<LiveDatabaseChange>(context, listen: false),
+      Provider.of<ReconnectivityNotifier>(context, listen: false),
+      Provider.of<NotificationDatabaseChange>(context, listen: false),
+      Provider.of<CheckConnectivityNotifier>(context, listen: false),
+      Provider.of<DatabaseDataUpdatedNotifier>(context, listen: false),
+      Provider.of<BubbleButtonClickUpdateNotifier>(context, listen: false),
+      Provider.of<NotificationPathNotifier>(context, listen: false),
+    );
   }
 
   @override
@@ -51,7 +69,8 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           SizedBox(
             width: 10,
-          ),Bounceable(
+          ),
+          Bounceable(
               onTap: () {
                 Navigator.push(
                   context,
@@ -68,15 +87,12 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
       body: AlertWidget(
-      onReconnectSuccess: () {},
-    path: '',
-    child: _tabs[_selectedIndex]),
+          onReconnectSuccess: () {}, path: '', child: _tabs[_selectedIndex]),
       bottomNavigationBar: FlashyTabBar(
         selectedIndex: _selectedIndex,
         showElevation: false,
         backgroundColor: Colors.transparent,
         onItemSelected: (index) => setState(() => _selectedIndex = index),
-
         items: [
           FlashyTabBarItem(
             icon: const Icon(Icons.home_outlined),

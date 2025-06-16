@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:calendar_timeline/calendar_timeline.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:dropdown_button2/dropdown_button2.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -11,6 +12,7 @@ import 'package:text_scroll/text_scroll.dart';
 import 'package:top_snackbar_flutter/custom_snack_bar.dart';
 import 'package:top_snackbar_flutter/top_snack_bar.dart';
 import '../../../../../../activity_helpers/FirestoreHelper.dart';
+import '../../../../../../activity_helpers/GlobalFunctions.dart';
 import '../../../../../../activity_helpers/GlobalVariables.dart';
 import '../../../../../../activity_helpers/UIHelpers.dart';
 import '../../../../../../change_notifiers/WebSocketService.dart';
@@ -32,6 +34,8 @@ class _FirestoreInfoState extends State<FirestoreInfo> {
   final valueListenable = ValueNotifier<String?>(null);
   String selectedCollectionPath = "";
 
+  int? documentCount;
+
   @override
   void initState() {
     // TODO: implement initState
@@ -41,12 +45,8 @@ class _FirestoreInfoState extends State<FirestoreInfo> {
   }
 
   void getFirestoreInfo() async {
-    var liveCollectionsAllInfo = await getDocumentsInfo("live");
-    liveCollections = liveCollectionsAllInfo['documentNames'];
-    var notificationsMainCollectionsAllInfo =
-        await getDocumentsInfo("notifications");
-    notificationsMainCollections =
-        notificationsMainCollectionsAllInfo['documentNames'];
+    liveCollections = await getSubCollections("live");
+    notificationsMainCollections = await getSubCollections("notifications");
 
     setState(() {});
   }
@@ -119,43 +119,25 @@ class _FirestoreInfoState extends State<FirestoreInfo> {
                             SingleChildScrollView(
                               scrollDirection: Axis.horizontal,
                               child: Row(
-                                children: List.generate(
-                                    responseList.length, (index) {
+                                children: List.generate(responseList.length, (index) {
                                   var item = responseList[index];
 
-                                  if (isFirstLoad) {
-                                    isFirstLoad = false;
-                                    getDocumentsInfo(
-                                        "$mainType/$subType/${responseList[0]}")
-                                        .then((result) {
-                                      setState(() {
-                                        info = result;
-                                        documentNames = info['documentNames'];
-                                        valueListenable.value = null;
-                                        selectedDocs = [];
-                                        selectedCollectionPath =
-                                        "$mainType/$subType/${responseList[index]
-                                            .toString()
-                                            .trim()}";
-                                      });
-                                    });
-                                  }
+
 
                                   return Container(
                                     margin: EdgeInsets.symmetric(horizontal: 1),
                                     child: MaterialButton(
                                       onPressed: () async {
                                         if (pressedIconIndex != index) {
-                                          var newInfo = await getDocumentsInfo(
+                                          var newInfo = await getDocumentCount(
                                             "$mainType/$subType/${responseList[index]
                                                 .toString()
                                                 .trim()}",
                                           );
-                                          setState(() {
+                                          setState(() async {
                                             pressedIconIndex = index;
                                             info = newInfo;
-                                            documentNames =
-                                            info['documentNames'];
+                                            documentNames = info['documentNames'];
                                             valueListenable.value = null;
                                             selectedDocs = [];
                                             selectedCollectionPath =
@@ -163,7 +145,7 @@ class _FirestoreInfoState extends State<FirestoreInfo> {
                                                 .toString()
                                                 .trim()}";
 
-                                            if (info['totalCount'] == 0) {
+                                            if (getDocumentCount(responseList[index]) == 0) {
                                               showTopSnackBar(
                                                 Overlay.of(context),
                                                 CustomSnackBar.info(
@@ -171,6 +153,10 @@ class _FirestoreInfoState extends State<FirestoreInfo> {
                                                 ),
                                               );
                                             }
+
+                                            documentCount=await getDocumentCount("$mainType/$subType/$selectedCollectionPath");
+
+                                            print(await getDocumentCount("$mainType/$subType/$selectedCollectionPath"));
                                           });
                                         }
                                       },
@@ -194,8 +180,7 @@ class _FirestoreInfoState extends State<FirestoreInfo> {
                                               height: 2,
                                               width: 30,
                                               color:
-                                              Colors
-                                                  .redAccent, // Underline color
+                                              Colors.redAccent, // Underline color
                                             ),
                                         ],
                                       ),
@@ -238,7 +223,7 @@ class _FirestoreInfoState extends State<FirestoreInfo> {
                                               ),
                                             ),
                                             Text(
-                                              "${info['totalCount']} Documents",
+                                              "$documentCount Documents",
                                               style: GoogleFonts.poppins(
                                                 fontSize: 8,
                                                 fontWeight: FontWeight.bold,
@@ -287,216 +272,6 @@ class _FirestoreInfoState extends State<FirestoreInfo> {
                                                 fontWeight: FontWeight.bold,
                                                 color: Color(0xff3DB070),
                                               ),
-                                            )
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                    SizedBox(
-                                      height: 10,
-                                    ),
-                                    Padding(
-                                      padding:
-                                      const EdgeInsets.only(
-                                          left: 20, right: 20),
-                                      child: Container(
-                                        width: MediaQuery
-                                            .of(context)
-                                            .size
-                                            .width,
-                                        padding: EdgeInsets.all(20),
-                                        decoration: const BoxDecoration(
-                                          color: Color(0xFFF3F3F3),
-                                          borderRadius:
-                                          BorderRadius.all(Radius.circular(20)),
-                                          boxShadow: [
-                                            BoxShadow(
-                                                color: Colors.black12,
-                                                blurRadius: 1),
-                                          ],
-                                        ),
-                                        child: Column(
-                                          crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              "Delete Data",
-                                              style: GoogleFonts.poppins(
-                                                fontSize: 8,
-                                                fontWeight: FontWeight.bold,
-                                                color: Colors.black,
-                                              ),
-                                            ),
-                                            Row(
-                                              mainAxisAlignment:
-                                              MainAxisAlignment.spaceBetween,
-                                              children: [
-                                                SingleChildScrollView(
-                                                  scrollDirection: Axis
-                                                      .horizontal,
-                                                  child: DropdownButtonHideUnderline(
-                                                    child: DropdownButton2<
-                                                        String>(
-                                                      isExpanded: true,
-
-                                                      // 👇👇👇 Replaces default button with our custom widget
-                                                      customButton: Container(
-                                                        height: 40,
-                                                        width: 120,
-                                                        padding: const EdgeInsets
-                                                            .symmetric(
-                                                            horizontal: 10),
-                                                        decoration: BoxDecoration(
-                                                          borderRadius:
-                                                          BorderRadius.circular(
-                                                              4),
-                                                        ),
-                                                        alignment:
-                                                        Alignment.centerLeft,
-                                                        child: SingleChildScrollView(
-                                                          scrollDirection:
-                                                          Axis.horizontal,
-                                                          child: Text(
-                                                            selectedDocs.isEmpty
-                                                                ? 'Select documents'
-                                                                : selectedDocs
-                                                                .join(', '),
-                                                            overflow:
-                                                            TextOverflow
-                                                                .ellipsis,
-                                                            style:
-                                                            GoogleFonts.poppins(
-                                                                fontSize: 8),
-                                                          ),
-                                                        ),
-                                                      ),
-
-                                                      // 👇 Multi-select menu with checkboxes
-                                                      items: documentNames
-                                                          .map((docName) {
-                                                        return DropdownItem<
-                                                            String>(
-                                                          enabled: false,
-                                                          height: 20,
-                                                          child: StatefulBuilder(
-                                                            builder: (context,
-                                                                menuSetState) {
-                                                              final isChecked =
-                                                              selectedDocs
-                                                                  .contains(
-                                                                  docName);
-
-                                                              return InkWell(
-                                                                onTap: () {
-                                                                  if (isChecked) {
-                                                                    selectedDocs
-                                                                        .remove(
-                                                                        docName);
-                                                                  } else {
-                                                                    selectedDocs
-                                                                        .add(
-                                                                        docName);
-                                                                  }
-
-                                                                  // rebuild menu item + parent
-                                                                  setState(() {});
-                                                                  menuSetState(() {});
-                                                                },
-                                                                child: Row(
-                                                                  children: [
-                                                                    Icon(
-                                                                      isChecked
-                                                                          ? Icons
-                                                                          .check_box
-                                                                          : Icons
-                                                                          .check_box_outline_blank,
-                                                                      size: 14,
-                                                                    ),
-                                                                    const SizedBox(
-                                                                        width: 6),
-                                                                    Expanded(
-                                                                      child: Text(
-                                                                        docName,
-                                                                        style: GoogleFonts
-                                                                            .poppins(
-                                                                          fontSize: 8,
-                                                                          color: Colors
-                                                                              .blue,
-                                                                          fontWeight:
-                                                                          FontWeight
-                                                                              .bold,
-                                                                        ),
-                                                                      ),
-                                                                    ),
-                                                                  ],
-                                                                ),
-                                                              );
-                                                            },
-                                                          ),
-                                                        );
-                                                      }).toList(),
-
-                                                      onChanged: (_) {},
-                                                      // unused
-
-                                                      buttonStyleData:
-                                                      const ButtonStyleData(
-                                                        height: 40,
-                                                        width: 120,
-                                                        padding: EdgeInsets
-                                                            .zero, // no extra padding; handled by customButton
-                                                      ),
-                                                      menuItemStyleData:
-                                                      const MenuItemStyleData(),
-                                                    ),
-                                                  ),
-                                                ),
-                                                Bounceable(
-                                                  onTap: () {
-                                                    if (selectedCollectionPath !=
-                                                        "" && selectedDocs
-                                                        .isNotEmpty) {
-                                                      showConfirmationDialog(
-                                                          context: context,
-                                                          title:
-                                                          'Delete Confirmation',
-                                                          content:
-                                                          'Are you sure you want to delete this item?',
-                                                          onConfirm: () async {
-                                                            await deleteDocumentsFromPath(
-                                                                selectedCollectionPath,
-                                                                selectedDocs);
-
-
-                                                            Navigator.pop(
-                                                                context);
-                                                          },
-                                                          snackBarMessage: 'Deleted!'
-                                                      );
-                                                    }
-                                                  },
-                                                  child: Container(
-                                                    decoration: const BoxDecoration(
-                                                      color: Color(0xffFF0000),
-                                                      borderRadius: BorderRadius
-                                                          .all(
-                                                          Radius.circular(20)),
-                                                    ),
-                                                    child: Padding(
-                                                      padding:
-                                                      const EdgeInsets.all(10),
-                                                      child: Text("Delete",
-                                                          style: GoogleFonts
-                                                              .poppins(
-                                                              color: Colors
-                                                                  .white,
-                                                              fontWeight:
-                                                              FontWeight.bold,
-                                                              fontSize: 8)),
-                                                    ),
-                                                  ),
-                                                ),
-                                              ],
                                             )
                                           ],
                                         ),
@@ -708,21 +483,9 @@ class _FirestoreInfoState extends State<FirestoreInfo> {
                 children: liveCollections
                     .map((item) => Bounceable(
                           onTap: () async {
-                            WebSocketService w = new WebSocketService();
-                            final reponse = await w.sendMessageGetResponse({
-                              "query": "firebase-subsubcollections",
-                              "path": "live.${item}"
-                            }, "user",expectedQuery: 'firebase-subsubcollections');
-                            final responseString = jsonDecode(
-                                    reponse["data"])["response"]
-                                .toString()
-                                .substring(
-                                    1,
-                                    ((jsonDecode(reponse["data"])["response"])
-                                            .length -
-                                        1));
-                            final List<dynamic> responseList =
-                                responseString.split(",");
+
+                            final responseList = await getSubSubCollectionsFromAllFile("live",item);
+
                             _showDraggableBottomSheet(
                                 context, "live", item, responseList);
                           },
@@ -758,22 +521,8 @@ class _FirestoreInfoState extends State<FirestoreInfo> {
                 children: notificationsMainCollections
                     .map((item) => Bounceable(
                           onTap: () async {
-                            WebSocketService w = new WebSocketService();
-                            final reponse = await w.sendMessageGetResponse({
-                              "query": "firebase-subsubcollections",
-                              "path": "notifications.${item}"
-                            }, "user",expectedQuery: 'firebase-subsubcollections');
-                            final responseString = jsonDecode(
-                                    reponse["data"])["response"]
-                                .toString()
-                                .substring(
-                                    1,
-                                    ((jsonDecode(reponse["data"])["response"])
-                                            .length -
-                                        1));
-                            final List<dynamic> responseList =
-                                responseString.split(",");
-                            print(responseList);
+                            final responseList = await getSubSubCollectionsFromAllFile("notifications",item);
+
                             _showDraggableBottomSheet(
                                 context, "notifications", item, responseList);
                           },
@@ -832,4 +581,6 @@ class _FirestoreInfoState extends State<FirestoreInfo> {
       ),
     );
   }
+
+
 }

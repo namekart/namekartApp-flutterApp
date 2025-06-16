@@ -31,33 +31,19 @@ Future<List<String>> getSubCollectionNames(String parentCollection) async {
     return [];
   }
 }
-Future<Map<String, dynamic>> getDocumentsInfo(String collectionPath) async {
+
+Future<int?> getDocumentCount(String collectionPath) async {
   try {
-    // Get reference to the collection
-    final collectionRef = FirebaseFirestore.instance.collection(collectionPath);
-
-    // Get all documents
-    QuerySnapshot querySnapshot = await collectionRef.get();
-
-    // Get total count
-    int totalCount = querySnapshot.docs.length;
-
-    // Get list of document names (IDs)
-    List<String> documentNames = querySnapshot.docs.map((doc) => doc.id).toList();
-
-    return {
-      'totalCount': totalCount,
-      'documentNames': documentNames,
-    };
+    final query = FirebaseFirestore.instance.collection(collectionPath);
+    final aggregateQuery = query.count();
+    final aggregateSnapshot = await aggregateQuery.get();
+    return aggregateSnapshot.count;
   } catch (e) {
-    print('Error getting documents info: $e');
-    return {
-      'totalCount': 0,
-      'documentNames': [],
-      'error': e.toString(),
-    };
+    print("❌ Error getting document count: $e");
+    return 0;
   }
 }
+
 
 Future<void> deleteDocumentsFromPath(
     String basePath, // Example: "mainType/subType/parentDoc"
@@ -142,7 +128,7 @@ Future<void> getFullDatabaseForPath(String path) async {
     // 🔄 Step 2: Fetch all documents from Firestore, ordered by ID
     final querySnapshot = await FirebaseFirestore.instance
         .collection(collectionPath)
-        .orderBy('id')
+        .orderBy('datetime_id')
         .get();
 
     if (querySnapshot.docs.isEmpty) {
@@ -153,7 +139,7 @@ Future<void> getFullDatabaseForPath(String path) async {
     // 📝 Step 3: Add all documents to Hive
     for (var doc in querySnapshot.docs) {
       final data = doc.data();
-      final docId = data['id']?.toString();
+      final docId = data['datetime_id']?.toString();
 
       if (docId == null) {
         print("⚠️ Skipped document without valid 'id' field: ${doc.id}");
@@ -175,48 +161,42 @@ Future<void> getFullDatabaseForPath(String path) async {
 }
 
 
-Future<bool> syncFirestoreFromDocIdRange(String path, int startingId, int endingId,bool update) async {
+Future<bool> syncFirestoreFromDocIdTimestamp(
+    String path,
+    String lastTimestampDocId,
+    bool update,
+    ) async {
   try {
     final collectionPath = path.replaceAll("~", "/");
 
-    // Lexicographically fetch docs with IDs between startingId and endingId
     final querySnapshot = await FirebaseFirestore.instance
         .collection(collectionPath)
         .orderBy(FieldPath.documentId)
-        .startAfter([startingId.toString()])
-        .endAt([endingId.toString()])
+        .startAfter([lastTimestampDocId]) // fetch strictly after
         .get();
 
     if (querySnapshot.docs.isEmpty) {
-      print("ℹ️ No documents found in Firestore for $collectionPath in ID range ($startingId, $endingId].");
+      print("ℹ️ No new documents found in Firestore for $collectionPath after $lastTimestampDocId.");
       return true;
     }
 
     for (var doc in querySnapshot.docs) {
-      final docIdStr = doc.id;
-      final numericDocId = int.tryParse(docIdStr);
-
-      // ✅ Only process documents strictly within numeric range
-      if (numericDocId == null || numericDocId <= startingId || numericDocId > endingId) {
-        print("⏩ Skipping doc ID $docIdStr (parsed: $numericDocId) - out of range.");
-        continue;
-      }
-
+      final docId = doc.id;
       final data = doc.data();
 
       try {
-        if(update){
-          await HiveHelper.updateDataOfHive(path, docIdStr, data);
-        }else{
-        await HiveHelper.addDataToHive(path, docIdStr, data);
+        if (update) {
+          await HiveHelper.updateDataOfHive(path, docId, data);
+        } else {
+          await HiveHelper.addDataToHive(path, docId, data);
         }
-        print("✅ Synced doc ID $docIdStr to Hive from $path.");
+        print("✅ Synced doc ID $docId to Hive from $path.");
       } catch (e) {
-        print("⚠️ Failed to add doc ID $docIdStr to Hive: $e");
+        print("⚠️ Failed to add/update doc ID $docId to Hive: $e");
       }
     }
 
-    print("✅ Sync of range ($startingId, $endingId] complete for $path.");
+    print("✅ Sync complete for new docs after $lastTimestampDocId in $path.");
     return true;
   } catch (e) {
     print("❌ Error syncing from Firestore to Hive for $path: $e");

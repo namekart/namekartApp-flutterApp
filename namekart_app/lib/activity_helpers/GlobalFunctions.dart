@@ -1,5 +1,9 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+import 'package:path_provider/path_provider.dart';
 
 
 
@@ -114,5 +118,101 @@ String extractSortValue(String text, String key) {
   final match = regex.firstMatch(text);
   return match != null ? match.group(0)! : '';
 }
+
+Future<void> addAllCloudPath(String data) async {
+  try {
+    final dir = await getApplicationDocumentsDirectory();
+    final file = File('${dir.path}/paths.json');
+    await file.writeAsString(data);  // Directly write the string
+    print('✅ Path data saved successfully.');
+  } catch (e) {
+    print('❌ Failed to save path: $e');
+  }
+}
+
+/// Read the local file and return the data as a string
+Future<String?> readAllCloudPath() async {
+  try {
+    final dir = await getApplicationDocumentsDirectory();
+    final file = File('${dir.path}/paths.json');
+
+    if (await file.exists()) {
+      final contents = await file.readAsString();  // Return the raw string
+      print('📄 Path data loaded successfully.');
+      return contents;
+    } else {
+      print('⚠️ No path data found.');
+      return null;
+    }
+  } catch (e) {
+    print('❌ Failed to read path data: $e');
+    return null;
+  }
+}
+
+Future<List<String>> getSubSubCollectionsFromAllFile(String mainCollection, String subCollection) async {
+  try {
+    final raw = await readAllCloudPath();
+    if (raw == null) return [];
+
+    final decodedOuter = jsonDecode(raw);
+    final innerJson = decodedOuter['data'];
+    final innerDecoded = jsonDecode(innerJson);
+    final responseRaw = innerDecoded['response'];
+    final List<dynamic> responseList = jsonDecode(responseRaw);
+
+    final List<String> subSubCollections = [];
+
+    for (var item in responseList) {
+      if (item is String) {
+        final parts = item.split("~");
+        if (parts.length == 3 &&
+            parts[0] == mainCollection &&
+            parts[1] == subCollection) {
+          subSubCollections.add(parts[2]);
+        }
+      }
+    }
+
+    print('✅ Found subSubCollections: $subSubCollections');
+    return subSubCollections;
+  } catch (e, st) {
+    print('❌ Error in getSubSubCollections: $e\n$st');
+    return [];
+  }
+}
+
+Future<List<String>> getSubCollections(String mainCollection) async {
+  try {
+    final raw = await readAllCloudPath();
+    if (raw == null) return [];
+
+    final decodedOuter = jsonDecode(raw);
+    final innerJson = decodedOuter['data'];
+    final innerDecoded = jsonDecode(innerJson);
+    final responseRaw = innerDecoded['response'];
+    final List<dynamic> responseList = jsonDecode(responseRaw);
+
+    final Set<String> subCollections = {};
+
+    for (var item in responseList) {
+      if (item is String) {
+        final parts = item.split("~");
+        if (parts.length == 3 && parts[0] == mainCollection) {
+          subCollections.add(parts[1]);
+        }
+      }
+    }
+
+    final result = subCollections.toList()..sort();
+    print("✅ Subcollections for '$mainCollection': $result");
+    return result;
+  } catch (e, st) {
+    print("❌ Error in getSubCollections: $e\n$st");
+    return [];
+  }
+}
+
+
 
 

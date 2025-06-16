@@ -4,21 +4,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bounceable/flutter_bounceable.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:namekart_app/cutsom_widget/customSyncWidget.dart';
 import 'package:namekart_app/screens/features/BiddingList.dart';
 import 'package:namekart_app/screens/features/WatchList.dart';
 import 'package:namekart_app/screens/features/BulkBid.dart';
 import 'package:namekart_app/screens/features/BulkFetch.dart';
+import 'package:namekart_app/screens/home_screen/tabs/channels_tab.dart';
 import 'package:namekart_app/screens/live_screens/live_details_screen.dart';
 import 'package:namekart_app/screens/search_screen/SearchScreen.dart';
-import 'package:namekart_app/screens/notifications_screen/NotificationScreen.dart';
 import 'package:namekart_app/database/HiveHelper.dart';
 import 'package:namekart_app/activity_helpers/UIHelpers.dart';
-import 'package:provider/provider.dart';
-
-import '../../../activity_helpers/GlobalVariables.dart';
-import '../../../change_notifiers/AllDatabaseChangeNotifiers.dart';
-import '../../../change_notifiers/WebSocketService.dart';
 
 class HomeTab extends StatefulWidget {
   const HomeTab({Key? key}) : super(key: key);
@@ -34,37 +28,9 @@ class _HomeTabState extends State<HomeTab> {
   void initState() {
     super.initState();
 
-    connectToWebsocket();
-
     getRingAlarmList();
   }
 
-  void connectToWebsocket() async {
-    await WebSocketService().connect(
-      GlobalProviders.userId,
-      Provider.of<LiveDatabaseChange>(context, listen: false),
-      Provider.of<LiveListDatabaseChange>(context, listen: false),
-      Provider.of<NotificationDatabaseChange>(context, listen: false),
-      Provider.of<NewNotificationTableAddNotifier>(context, listen: false),
-      Provider.of<DatabaseDataUpdatedNotifier>(context, listen: false),
-      Provider.of<NotifyRebuildChange>(context, listen: false),
-    );
-
-    final Map<String, dynamic> response =
-    await WebSocketService().sendMessageGetResponse({
-      "query": "reconnection-check",
-    }, "user",expectedQuery: 'reconnection-check');
-
-    final reconnected = response != null &&
-        response.containsKey('data') &&
-        jsonDecode(response['data'])['response']
-            .toString()
-            .contains("reconnected");
-
-    if (reconnected) {
-      WebSocketService.isConnected = true;
-    }
-  }
 
 
     Future<void> getRingAlarmList() async {
@@ -339,7 +305,7 @@ class _HomeTabState extends State<HomeTab> {
                               subCollection: parts[1],
                               subSubCollection: parts[2],
                               showHighlightsButton: true)
-                              : NotificationScreen()),
+                              : ChannelsTab()),
                     );
                   },
                   child: Container(

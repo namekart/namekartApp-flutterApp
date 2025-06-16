@@ -186,18 +186,26 @@ class HiveHelper {
   static Map<String, dynamic>? getLast(String path) {
     final data = read(path);
     if (data is Map<String, dynamic>) {
-      final keys = data.keys
-          .map((key) => int.tryParse(key))
-          .where((key) => key != null)
-          .cast<int>()
+      final entries = data.entries
+          .where((e) => e.value is Map<String, dynamic> && e.value['datetime'] != null)
+          .map((e) => MapEntry(
+        e.key,
+        {
+          ...Map<String, dynamic>.from(e.value),
+          'parsedDatetime': DateTime.tryParse(e.value['datetime']),
+        },
+      ))
+          .where((e) => e.value['parsedDatetime'] != null)
           .toList();
 
-      if (keys.isEmpty) return null;
+      if (entries.isEmpty) return null;
 
-      keys.sort();
-      final lastKey = keys.last.toString();
+      entries.sort((a, b) =>
+          (a.value['parsedDatetime'] as DateTime).compareTo(b.value['parsedDatetime'] as DateTime));
 
-      return Map<String, dynamic>.from(data[lastKey]);
+      final latestEntry = entries.last.value;
+      latestEntry.remove('parsedDatetime'); // clean up before returning
+      return latestEntry;
     }
     return null;
   }
