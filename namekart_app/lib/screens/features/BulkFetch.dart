@@ -8,6 +8,7 @@ import 'package:http/http.dart' as http;
 import 'package:namekart_app/cutsom_widget/CustomShimmer.dart';
 import 'package:namekart_app/cutsom_widget/SuperAnimatedWidget.dart';
 import 'package:shimmer/shimmer.dart';
+import '../../activity_helpers/UIHelpers.dart';
 import '../../cutsom_widget/AnimatedAvatarIcon.dart';
 import '../../cutsom_widget/AutoAnimatedContainerWidget.dart';
 import '../../storageClasses/Auctions.dart';
@@ -78,140 +79,121 @@ class _BulkFetchState extends State<BulkFetch> {
   }
 
   Widget _buildItem(DomainField domainField, int index, Animation<double> animation) {
-    return SuperAnimatedWidget(
-      effects: const [AnimationEffect.fade,AnimationEffect.slide,AnimationEffect.scale],
-      child: SizeTransition(
-        sizeFactor: animation,
+    return SizeTransition(
+      sizeFactor: animation,
+      child: Card(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+        color: Colors.white, // Slight transparency for premium look
         child: Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: Card(
-            margin: const EdgeInsets.symmetric(vertical: 16),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(24),
-            ),
-            color: Color(0xFFF3F3F3), // Slight transparency for premium look
-            child: Padding(
-              padding: const EdgeInsets.all(10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Platform Dropdown
-                  Row(
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.all(10),
-                        child: Opacity(
-                            opacity: 0.5,
-                            child: Image.asset("assets/images/auctionsimages/bulkfetch.png",width: 50.sp,height: 50.sp,)),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.only(left: 10),
-                        child: Container(
-                          width: 150.sp,
-                          height: 40.sp,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(16),
-                            color: Color(0xffB71C1C),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.05),
-                                blurRadius: 10,
-                                offset: Offset(0, 5),
-                              ),
-                            ],
-                          ),
-                          child: InkWell(
-                            onTap: () {
-                              _showCustomDropdown(domainField, index);
-                            },
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 20),
-                              child: Row(
-                                children: [
-                                  Image.asset(
-                                    'assets/images/home_screen_images/livelogos/${domainField.selectedPlatform.toLowerCase()}.png',
-                                    width: 15,
-                                    height: 15,
-                                  ),
-                                  const SizedBox(width: 5),
-                                  Padding(
-                                    padding: const EdgeInsets.only(left: 8.0),
-                                    child: Text(
-                                      domainField.selectedPlatform,
-                                      style: const TextStyle(
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                  ),
-                                  const Spacer(),
-                                  Icon(Icons.arrow_drop_down, color: Colors.black87),
-                                ],
-                              ),
+          padding: const EdgeInsets.all(10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Platform Dropdown
+              Padding(
+                padding: const EdgeInsets.only(left: 5,bottom: 15,top: 5),
+                child: text(
+                    text: "Select The Platform",
+                    size: 12,
+                    color: Color(0xff3F3F41),
+                    fontWeight: FontWeight.w400),
+              ),
+              Container(
+                decoration: BoxDecoration(
+                  color: Color(0xffFFFFFF),
+                  border: Border.all(color: Colors.black12, width: 1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: InkWell(
+                  onTap: () {
+                    _showCustomDropdown(domainField, index);
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 20),
+                    child: Row(
+                      children: [
+                        Image.asset(
+                          'assets/images/home_screen_images/livelogos/${domainField.selectedPlatform.toLowerCase()}.png',
+                          width: 15,
+                          height: 15,
+                        ),
+                        const SizedBox(width: 5),
+                        Padding(
+                          padding: const EdgeInsets.only(left: 8.0),
+                          child: Text(
+                            domainField.selectedPlatform,
+                            style: const TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w400,
+                              color: Color(0xff717171),
                             ),
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  // Domain Name Input
-                  Container(
-                    height: 45.sp,
-                    child: TextField(
-                      onChanged: (text) {
-                        domainFields[index].domainName = text;
-                      },
-                      decoration: InputDecoration(
-                        label:Text("Domain Name",style: GoogleFonts.poppins(
-                            color: Colors.black, fontWeight: FontWeight.bold,fontSize: 10),),
-                        filled: true,
-                        fillColor: Colors.black12,
-                        contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          borderSide: BorderSide.none,
-                        ),
-                      ),
-                      style: const TextStyle(color: Colors.black, fontSize: 10),
+                        const Spacer(),
+                        Icon(Icons.arrow_drop_down, color: Colors.black87),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 10),
-                  // Add/Remove Button
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Padding(
-                          padding: EdgeInsets.only(left: 8,right: 8),
-                          child: Text(
-                            'Add More Domains',
-                            style: GoogleFonts.poppins(
-                                color: Color(0xffB71C1C),
-                                fontWeight: FontWeight.bold,
-                                fontSize: 10),
-                          ),
-                        ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              // Domain Name Input
+              TextField(
+                onChanged: (text) {
+                  domainFields[index].domainName = text;
+                },
+                decoration: InputDecoration(
+                  labelText: 'Enter Domain Name',
+                  labelStyle: GoogleFonts.poppins(
+                    fontWeight: FontWeight.w300,
+                    color: Color(0xff717171),
+                    fontSize: 9,
+                  ),
+                  filled: true,
+                  fillColor: Colors.white,
+                  contentPadding: EdgeInsets.only(left: 10),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(color: Colors.black12, width: 1),
+                  ),
+                ),
+                style: const TextStyle(color: Colors.black, fontSize: 10),
+              ),
+              const SizedBox(height: 5),
+              // Add/Remove Button
+              Row(
+                children: [
+                  Expanded(
+                    child: Padding(
+                      padding: EdgeInsets.only(left: 8,right: 8),
+                      child: Text(
+                        'Add More Domains',
+                        style: GoogleFonts.poppins(
+                            color: Color(0xffB71C1C),
+                            fontWeight: FontWeight.bold,
+                            fontSize: 10),
                       ),
-                      IconButton(
-                        icon: Icon(
-                          index == domainFields.length - 1 ? Icons.add_circle : Icons.remove_circle,
-                          color: index == domainFields.length - 1 ? Color(0xffB71C1C) : Color(0xffB71C1C),
-                          size: 20,
-                        ),
-                        onPressed: () {
-                          if (index == domainFields.length - 1) {
-                            addNewField();
-                          } else {
-                            removeField(index);
-                          }
-                        },
-                      ),
-                    ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: Icon(
+                      index == domainFields.length - 1 ? Icons.add_circle : Icons.remove_circle,
+                      color: index == domainFields.length - 1 ? Color(0xffB71C1C) : Color(0xffB71C1C),
+                      size: 20,
+                    ),
+                    onPressed: () {
+                      if (index == domainFields.length - 1) {
+                        addNewField();
+                      } else {
+                        removeField(index);
+                      }
+                    },
                   ),
                 ],
               ),
-            ),
+            ],
           ),
         ),
       ),
@@ -333,54 +315,20 @@ class _BulkFetchState extends State<BulkFetch> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: Color(0xffF7F7F7),
       appBar: AppBar(
-        shadowColor: Colors.black,
-        elevation: 5,
-        iconTheme: const IconThemeData(color: Colors.white, size: 20),
-        actions: [
-          Container(
-            width: 2,
-            height: 25.sp,
-            color: Colors.black12,
-          ),
-          AnimatedAvatarIcon(
-            animationType: AnimationType.flyUpLoop,
-            duration: Duration(seconds: 5),
-            child: IconButton(
-              onPressed: () {
-                setState(() {});
-              },
-              icon: Image.asset(
-                "assets/images/home_screen_images/features/bulkbid.png",
-                width: 20.sp,
-                height: 20.sp,
-              ),
-            ),
-          )
-        ],
-        actionsIconTheme: IconThemeData(color: Colors.white, size: 20),
-        title: Shimmer.fromColors(
-          baseColor:Colors.white,
-          highlightColor: Colors.black,
-          child: Text("Bulk Fetch",
-              style: GoogleFonts.poppins(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14.sp,
-                  color: Colors.white)),
-        ),
+        backgroundColor: Color(0xffF7F7F7),
+        iconTheme: const IconThemeData(color: Color(0xff3F3F41), size: 18),
+        title: text(
+            text: "Bulk Fetch",
+            fontWeight: FontWeight.w300,
+            size: 12.sp,
+            color: Color(0xff3F3F41)),
         titleSpacing: 0,
         toolbarHeight: 50,
-        flexibleSpace: Container(
-            decoration: BoxDecoration(
-                gradient: LinearGradient(
-                    colors: [
-                      Color(0xFF03A7FF), Color(0xFFAE002C)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight))),
       ),
       body: Padding(
-        padding: const EdgeInsets.all(15),
+        padding: const EdgeInsets.only(left: 15,right: 15),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -396,7 +344,6 @@ class _BulkFetchState extends State<BulkFetch> {
                 },
               ),
             ),
-            const SizedBox(height: 20),
             // Submit Button
             Center(
               child:Shimmer.fromColors(

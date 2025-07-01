@@ -88,3 +88,21 @@ class ReconnectivityNotifier extends ChangeNotifier {
   }
 }
 
+
+class CurrentDateChangeNotifier extends ChangeNotifier {
+  String currentDate='';
+  void setCurrentDate(String currentDate) {
+    currentDate = currentDate;
+  }
+
+  String getCurrentDate() {
+    return currentDate;
+  }
+
+  void notifyCurrentDateChangeNotifier() {
+    // If the updated path matches the current path, notify listeners
+    notifyListeners();
+  }
+}
+
+

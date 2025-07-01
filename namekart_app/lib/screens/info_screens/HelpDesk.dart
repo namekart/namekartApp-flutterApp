@@ -10,8 +10,8 @@ import 'package:namekart_app/activity_helpers/UIHelpers.dart';
 import 'package:top_snackbar_flutter/custom_snack_bar.dart';
 import 'package:top_snackbar_flutter/top_snack_bar.dart';
 
-import '../../../change_notifiers/WebSocketService.dart';
-import '../carousel_options/whatnewupdate/UpdateVersions.dart';
+import '../../change_notifiers/WebSocketService.dart';
+import 'UpdateVersions.dart';
 
 class HelpDesk extends StatefulWidget {
   @override

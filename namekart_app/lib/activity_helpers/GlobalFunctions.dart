@@ -120,6 +120,7 @@ String extractSortValue(String text, String key) {
 }
 
 Future<void> addAllCloudPath(String data) async {
+  if(!data.contains("[]")){
   try {
     final dir = await getApplicationDocumentsDirectory();
     final file = File('${dir.path}/paths.json');
@@ -127,7 +128,7 @@ Future<void> addAllCloudPath(String data) async {
     print('✅ Path data saved successfully.');
   } catch (e) {
     print('❌ Failed to save path: $e');
-  }
+  }}
 }
 
 /// Read the local file and return the data as a string
@@ -212,6 +213,55 @@ Future<List<String>> getSubCollections(String mainCollection) async {
     return [];
   }
 }
+
+Map<String, Map<String, List<String>>> returnMap(List<String> inputList) {
+  final Map<String, Map<String, List<String>>> result = {};
+
+  for (String path in inputList) {
+    final parts = path.split("~");
+    if (parts.length < 3) continue; // skip malformed
+
+    final main = parts[0];
+    final sub = parts[1];
+    final leaf = parts[2];
+
+    result.putIfAbsent(main, () => {});
+    result[main]!.putIfAbsent(sub, () => []);
+    result[main]![sub]!.add(leaf);
+  }
+
+  return result;
+}
+
+
+String formatToIST(String isoString) {
+  // Parse the original ISO string into a UTC DateTime
+  DateTime utcTime = DateTime.parse(isoString);
+
+  // Add 5 hours 30 minutes to convert to IST
+  DateTime istTime = utcTime.add(Duration(hours: 5, minutes: 30));
+
+  // Format in desired style
+  String formatted = DateFormat('h:mm a').format(istTime);
+
+  return formatted;
+}
+
+
+
+String extractDate(String isoString) {
+  try {
+    final dt = DateTime.parse(isoString);
+    final year = dt.year.toString();
+    final month = dt.month.toString().padLeft(2, '0');
+    final day = dt.day.toString().padLeft(2, '0');
+    return '$year-$month-$day';
+  } catch (e) {
+    return 'Invalid date';
+  }
+}
+
+
 
 
 

@@ -10,7 +10,7 @@
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_REMOTE_MESSAGING" />
-    <uses-permission android:name="android.permission.VIBRATE"/>
+    <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
@@ -19,6 +19,18 @@
         android:icon="@mipmap/ic_launcher"
         android:label="namekart_app">
 
+
+        <activity android:name="com.microsoft.identity.client.BrowserTabActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:host="com.example.namekart_app"
+                    android:path="/wOnWDw1F6gWy4TyhdXzYaD4bm4I="
+                    android:scheme="msauth" />
+            </intent-filter>
+        </activity>
         <activity
             android:name=".MainActivity"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
@@ -35,21 +47,22 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-        </activity>
 
-        <activity android:name="com.microsoft.identity.client.BrowserTabActivity" android:exported="false"
-            tools:ignore="AppLinkUrlError">
+            <!-- ✅ Add this intent filter here -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
+
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
+
                 <data
                     android:host="auth"
-                    android:path=""
-                    android:scheme="msalc671954e-7f6e-4db7-91f9-08fa9eca986b"
-                    tools:ignore="AppLinkUrlError" />
+                    android:scheme="namekart-cloud" />
             </intent-filter>
         </activity>
+
+
+
 
         <meta-data
             android:name="flutterEmbedding"
@@ -92,8 +105,8 @@
 
         <service
             android:name="id.flutter.flutter_background_service.BackgroundService"
-            android:foregroundServiceType="dataSync"
             android:exported="true"
+            android:foregroundServiceType="dataSync"
             tools:ignore="MissingClass"
             tools:replace="android:foregroundServiceType" />
     </application>

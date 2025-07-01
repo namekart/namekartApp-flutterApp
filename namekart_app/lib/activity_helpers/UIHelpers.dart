@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:core';
 
 import 'package:flutter/material.dart';
@@ -129,13 +130,118 @@ Future<void> dynamicDialog(
     int bubbleButtonIndex,
     String bubbleButtonName,
     String buttonType,
-    String buttonDomainName) async {
-  final bubbleButtonClickUpdateNotifier =
-      Provider.of<BubbleButtonClickUpdateNotifier>(context, listen: false);
+    String buttonDomainName,
+    VoidCallback onDialogComplete) async {
+  final bubbleButtonClickUpdateNotifier = Provider.of<BubbleButtonClickUpdateNotifier>(context, listen: false);
 
   var buttonOnClickData = buttonData['onclick'];
 
-  if (buttonOnClickData.keys.toString().contains("text")) {
+  if (buttonOnClickData.values.toString().contains("\\\"url\\\"")||buttonOnClickData.keys.toString().contains("url")) {
+    if(buttonOnClickData.keys.toString().contains("url")){
+      launchInBrowser(buttonOnClickData.values.toList()[0].values.toList()[0]);
+    }else{
+    final outer = buttonOnClickData;
+    final messageString = jsonDecode(outer['text']['h1'])['message'];
+
+    // Step 2: Decode the inner escaped JSON
+    final inner = json.decode(messageString);
+
+    // Step 3: Extract the "url" map
+    final urlMap = inner['onclick']['url'] as Map<String, dynamic>;
+
+    // Step 4: Convert to list
+    final urlList = urlMap;
+
+      showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return StatefulBuilder(builder: (context, setState) {
+              return AlertDialog(
+                  contentPadding: const EdgeInsets.all(0),
+                  backgroundColor: Color(0xffF5F5F5),
+                  content: Container(
+                      width: MediaQuery
+                          .of(context)
+                          .size
+                          .width,
+                      decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(20),
+                          color: Colors.white
+                      ),
+                      child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            AppBar(
+                              title: text(
+                                  text: buttonData['button_text'],
+                                  size: 10,
+                                  color: Color(0xff717171),
+                                  fontWeight: FontWeight.w400
+                              ),
+                              backgroundColor: Colors.white,
+                              iconTheme:
+                              IconThemeData(size: 20, color: Color(0xff717171)),
+                              titleSpacing: 0,
+                              shape: const RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.only(
+                                      topLeft: Radius.circular(20),
+                                      topRight: Radius.circular(20))),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.only(
+                                  left: 20, right: 20, bottom: 20),
+                              child: Wrap(
+                                spacing: 20, // horizontal space between items
+                                runSpacing: 8, // vertical space between rows
+                                children: List.generate(
+                                    urlList.keys.length, (urlButtonIndex) {
+                                  final key = urlList.keys
+                                      .toList()[urlButtonIndex];
+                                  return Padding(
+                                    padding: const EdgeInsets.all(5.0),
+                                    child: Bounceable(
+                                      onTap: () {
+                                        final url = urlList[key];
+                                        launchInBrowser(url);
+                                      },
+                                      child: SizedBox(
+                                        width: 35,
+                                        child: Column(
+                                          mainAxisAlignment: MainAxisAlignment
+                                              .center,
+                                          children: [
+                                            ColorFiltered(
+                                                colorFilter: ColorFilter.mode(
+                                                    Color(
+                                                        0xff717171),
+                                                    BlendMode
+                                                        .srcIn),
+                                                child: getIconForButton(
+                                                    key, 17)),
+                                            const SizedBox(height: 10),
+                                            text(
+                                              text: key,
+                                              size: 8,
+                                              color: Color(0xff717171),
+                                              fontWeight: FontWeight.w300,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                }),
+                              ),
+                            )
+                          ])));
+            });
+          });
+
+    onDialogComplete();
+    }
+
+  } else if (buttonOnClickData.keys.toString().contains("text")) {
     var buttonOnClickDataList = buttonOnClickData['text'];
     var buttonOnClickDataListKeys = buttonOnClickDataList.keys.toList();
 
@@ -145,181 +251,92 @@ Future<void> dynamicDialog(
         return StatefulBuilder(builder: (context, setState) {
           return AlertDialog(
               contentPadding: const EdgeInsets.all(0),
-              backgroundColor: Color(0xffF5F5F5),
-              content: Container(
-                  width: MediaQuery.of(context).size.width,
-                  height: 270.sp,
-                  child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        AppBar(
-                          title: Text(
-                            buttonData['button_text'],
-                            style: GoogleFonts.poppins(
-                                fontSize: 10,
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold),
-                          ),
-                          backgroundColor: Color(0xffB71C1C),
-                          iconTheme:
-                              IconThemeData(size: 20, color: Colors.white),
-                          titleSpacing: 0,
-                          shape: const RoundedRectangleBorder(
-                              borderRadius: BorderRadius.only(
-                                  topLeft: Radius.circular(20),
-                                  topRight: Radius.circular(20))),
-                        ),
-                        SingleChildScrollView(
-                          child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Padding(
-                                  padding: const EdgeInsets.all(15),
-                                  child: SizedBox(
-                                    width: MediaQuery.of(context).size.width,
-                                    child: ListView.builder(
-                                        shrinkWrap: true,
-                                        itemCount:
-                                            buttonOnClickDataListKeys.length,
-                                        itemBuilder: (context,
-                                            buttonOnClickDataListindex) {
-                                          return Padding(
-                                            padding: const EdgeInsets.all(5),
-                                            child: Text(
-                                                buttonOnClickDataList[
-                                                    buttonOnClickDataListKeys[
-                                                        buttonOnClickDataListindex]],
-                                                style: (buttonOnClickDataList[
-                                                            buttonOnClickDataListindex] ==
-                                                        "h1")
-                                                    ? GoogleFonts.poppins(
-                                                        fontSize: 14,
-                                                        fontWeight:
-                                                            FontWeight.bold,
-                                                        color:
-                                                            Color(0xffB71C1C))
-                                                    : GoogleFonts.poppins(
-                                                        fontSize: 10,
-                                                        fontWeight:
-                                                            FontWeight.bold,
-                                                        color: Colors.black54)),
-                                          );
-                                        }),
-                                  ),
-                                ),
-                              ]),
-                        )
-                      ])));
-        });
-      },
-    );
-  } else if (buttonOnClickData.keys.toString().contains('url')) {
-    var urlList = buttonOnClickData['url'];
-
-    if (urlList.length == 1) {
-      launchInBrowser("https://" + urlList[urlList.keys.toList()[0]]);
-    } else {
-      showDialog(
-          context: context,
-          builder: (BuildContext context) {
-            return StatefulBuilder(builder: (context, setState) {
-              return AlertDialog(
-                  contentPadding: const EdgeInsets.all(0),
-                  backgroundColor: Color(0xffF5F5F5),
-                  content: Container(
-                      width: MediaQuery.of(context).size.width,
-                      height: 270.sp,
+              backgroundColor: Colors.white,
+              content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    AppBar(
+                      toolbarHeight: 50,
+                      title: text(
+                          text: buttonData['button_text'],
+                          size: 8,
+                          color: Colors.black,
+                          fontWeight: FontWeight.w400),
+                      iconTheme:
+                          IconThemeData(size: 15, color: Colors.black),
+                      titleSpacing: 0,
+                      backgroundColor: Colors.white,
+                      shape: const RoundedRectangleBorder(
+                          borderRadius: BorderRadius.only(
+                              topLeft: Radius.circular(20),
+                              topRight: Radius.circular(20))),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.only(left: 20,right: 20,bottom: 40),
                       child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            AppBar(
-                              title: Text(
-                                buttonData['button_text'],
-                                style: GoogleFonts.poppins(
-                                    fontSize: 10,
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold),
+                            Padding(
+                              padding: const EdgeInsets.all(10),
+                              child: SizedBox(
+                                width: MediaQuery.of(context).size.width,
+                                child: ListView.builder(
+                                    shrinkWrap: true,
+                                    itemCount:
+                                        buttonOnClickDataListKeys.length,
+                                    itemBuilder: (context,
+                                        buttonOnClickDataListindex) {
+                                      var message = jsonDecode(
+                                              buttonOnClickDataList[
+                                                  buttonOnClickDataListKeys[
+                                                      buttonOnClickDataListindex]])[
+                                          'message'];
+                                      return text(
+                                          text: message,
+                                          size: 8,
+                                          fontWeight: FontWeight.w300,
+                                          color: Color(0xff717171));
+                                    }),
                               ),
-                              backgroundColor: Color(0xffB71C1C),
-                              iconTheme:
-                                  IconThemeData(size: 20, color: Colors.white),
-                              titleSpacing: 0,
-                              shape: const RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.only(
-                                      topLeft: Radius.circular(20),
-                                      topRight: Radius.circular(20))),
                             ),
-                            SingleChildScrollView(
-                              child: Padding(
-                                padding: const EdgeInsets.only(top: 20),
-                                child: GridView.builder(
-                                  gridDelegate:
-                                      const SliverGridDelegateWithFixedCrossAxisCount(
-                                    crossAxisCount: 3,
-                                    // 3 columns
-                                    crossAxisSpacing: 3,
-                                    // Space between columns
-                                    mainAxisSpacing: 1,
-                                    // Space between rows
-                                    childAspectRatio:
-                                        1.5, // Adjusted to better fit content
-                                  ),
-                                  itemCount: urlList.length,
-                                  shrinkWrap: true,
-                                  physics: const NeverScrollableScrollPhysics(),
-                                  // Disable scrolling if inside another scrollable widget
-                                  itemBuilder: (context, urlButtonIndex) {
-                                    // Use a Column or Wrap instead of a nested GridView
-                                    return Padding(
-                                      padding: const EdgeInsets.all(5.0),
-                                      child: Bounceable(
-                                        onTap: () {},
-                                        child: Column(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                          children: [
-                                            getIconForButton(
-                                                urlList.keys
-                                                    .toList()[urlButtonIndex],
-                                                30),
-                                            const SizedBox(height: 10),
-                                            Text(
-                                              urlList.keys
-                                                  .toList()[urlButtonIndex],
-                                              style: GoogleFonts.poppins(
-                                                fontSize: 10,
-                                                fontWeight: FontWeight.bold,
-                                                color: Colors.black54,
-                                              ),
-                                              textAlign: TextAlign.center,
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                ),
-                              ),
-                            )
-                          ])));
-            });
-          });
-    }
-  } else if (buttonOnClickData
-      .toString()
-      .contains("send-to-server-get-dialog")) {
+                          ]),
+                    )
+                  ]));
+        });
+      },
+    );
+
+    onDialogComplete();
+
+  } else if (buttonOnClickData.toString().contains("send-to-server-get-dialog")||buttonOnClickData.toString().contains("send-to-server-get-snackbar")) {
     WebSocketService websocketService = new WebSocketService();
 
     String calledDocumentPath = "$hivedatabasepath~$documentId";
-
-    Map<String, String> a = {
-      "send-to-server-get-dialog":
-          buttonOnClickData['send-to-server-get-dialog'],
-      "calledDocumentPath": calledDocumentPath,
-      "calledDocumentPathFields":
-          "uiButtons[$bubbleButtonIndex].$bubbleButtonName.onclick",
-      "type": buttonType.toLowerCase()
-    };
+    Map<String, String> a;
+    if(buttonOnClickData.toString().contains("send-to-server-get-dialog")) {
+       a = {
+        "send-to-server-get-dialog": buttonOnClickData['send-to-server-get-dialog'],
+        "calledDocumentPath": calledDocumentPath,
+        "calledDocumentPathFields": "uiButtons[$bubbleButtonIndex].$bubbleButtonName.onclick",
+        "type": buttonType.toLowerCase(),
+        "domain": buttonDomainName,
+        "chatid": calledDocumentPath.split("~")[1],
+        "messageid": calledDocumentPath.split("~")[2],
+        "userID": GlobalProviders.loginToken.username!,
+      };
+    }else {
+      a = {
+        "send-to-server-get-snackbar": buttonOnClickData['send-to-server-get-snackbar'],
+        "calledDocumentPath": calledDocumentPath,
+        "calledDocumentPathFields": "uiButtons[$bubbleButtonIndex].$bubbleButtonName.onclick",
+        "type": buttonType.toLowerCase(),
+        "domain": buttonDomainName,
+        "chatid": calledDocumentPath.split("~")[1],
+        "messageid": calledDocumentPath.split("~")[2],
+        "userID": GlobalProviders.loginToken.username!,
+      };
+    }
 
     //sending response to server imp
     websocketService.sendMessage(a);
@@ -336,29 +353,13 @@ Future<void> dynamicDialog(
         bubbleButtonIndex,
         bubbleButtonName,
         buttonType,
-        buttonDomainName,
+        buttonDomainName,onDialogComplete
       );
       bubbleButtonClickUpdateNotifier.removeListener(listener);
     }
 
     bubbleButtonClickUpdateNotifier.addListener(listener);
-  } else if (buttonOnClickData.toString().contains("send-to-server-get-snackbar")) {
 
-    WebSocketService websocketService = new WebSocketService();
-
-    String calledDocumentPath = "$hivedatabasepath~$documentId";
-
-    Map<String, String> a = {
-      "send-to-server-get-snackbar":
-      buttonOnClickData['send-to-server-get-snackbar'],
-      "calledDocumentPath": calledDocumentPath,
-      "calledDocumentPathFields":
-      "uiButtons[$bubbleButtonIndex].$bubbleButtonName.onclick",
-      "type": buttonType.toLowerCase()
-    };
-
-    //sending response to server imp
-    websocketService.sendMessage(a);
 
   } else if (buttonOnClickData.toString().contains("openinputbox")) {
     TextEditingController _inputTextFieldController =
@@ -453,7 +454,11 @@ Future<void> dynamicDialog(
                         ),
                       ])));
         });
-  } else if (buttonOnClickData.toString().contains("showSnackbar")) {
+
+    onDialogComplete();
+
+  }
+  else if (buttonOnClickData.toString().contains("showSnackbar")) {
     showTopSnackBar(
       Overlay.of(context),
       displayDuration: Duration(milliseconds: 100),

@@ -80,7 +80,9 @@ dependencies:
   internet_connection_checker: ^3.0.1
   dart_jsonwebtoken: ^2.16.0
   firebase_auth: ^5.4.1
+  msal_auth: ^3.1.4
 
+  scrollable_positioned_list: ^0.3.8
 
 dev_dependencies:
   flutter_test:

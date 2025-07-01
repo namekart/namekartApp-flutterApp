@@ -1,6 +1,7 @@
 // globals.dart
 import 'package:flutter/material.dart';
 import 'package:icons_plus/icons_plus.dart';
+import 'package:msal_auth/msal_auth.dart';
 import 'package:provider/provider.dart';
 import '../change_notifiers/AllDatabaseChangeNotifiers.dart';
 
@@ -13,6 +14,11 @@ class GlobalProviders {
   static late DatabaseDataUpdatedNotifier databaseDataUpdatedNotifier;
 
   static late String userId;
+  static late Account loginToken;
+
+  String redirectUri='msauth://com.example.namekart_app/wOnWDw1F6gWy4TyhdXzYaD4bm4I%3D';
+
+  static bool previouslyOpen=false;
 
   // Initialize all providers in one method
   static void initialize(BuildContext context) {

@@ -1,14 +1,12 @@
 import 'dart:async';
-import 'dart:convert';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_bounceable/flutter_bounceable.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:namekart_app/activity_helpers/GlobalVariables.dart';
 import 'package:provider/provider.dart';
-import 'package:top_snackbar_flutter/safe_area_values.dart';
 import 'package:top_snackbar_flutter/top_snack_bar.dart';
+import 'package:top_snackbar_flutter/safe_area_values.dart';
 import '../change_notifiers/AllDatabaseChangeNotifiers.dart';
 import '../change_notifiers/WebSocketService.dart';
 
@@ -30,240 +28,160 @@ class AlertWidget extends StatefulWidget {
 
 class _AlertWidgetState extends State<AlertWidget> {
   late StreamSubscription<List<ConnectivityResult>> _connectivitySubscription;
-  bool _hasInternet = true;
-
-  bool reconnecting = false;
-
-  AnimationController? topSnackBarController;
-
   late Timer _webSocketCheckTimer;
 
-  bool snackbarShowing=false;
-
-  late var connected;
-
-  bool _timerInitialized = false;
-
   late CheckConnectivityNotifier checkConnectivityNotifier;
+  AnimationController? topSnackBarController;
 
+  bool _hasInternet = true;
+  bool _timerInitialized = false;
+  bool _snackbarVisible = false;
 
   @override
   void initState() {
     super.initState();
 
-    if (!_timerInitialized) {
-        _connectivitySubscription = Connectivity()
-            .onConnectivityChanged
-            .listen((List<ConnectivityResult> results) {
-          final connected = results.any((r) => r != ConnectivityResult.none);
-          if (mounted && _hasInternet != connected) {
-            setState(() {
-              _hasInternet = connected;
-            });
-            _showConnectivitySnack();
+    _connectivitySubscription =
+        Connectivity().onConnectivityChanged.listen((results) {
+          final isConnected = results.any((r) => r != ConnectivityResult.none);
+          if (mounted && _hasInternet != isConnected) {
+            setState(() => _hasInternet = isConnected);
+            _showConnectivitySnack(isConnected);
           }
         });
 
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          checkConnectivityNotifier = Provider.of<CheckConnectivityNotifier>(context, listen: false);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      checkConnectivityNotifier = Provider.of<CheckConnectivityNotifier>(context, listen: false);
+      _startWebSocketMonitor();
+    });
+  }
 
+  void _startWebSocketMonitor() {
+    _webSocketCheckTimer = Timer.periodic(const Duration(seconds: 10), (_) async {
+      bool responded = false;
 
-          _webSocketCheckTimer = Timer.periodic(const Duration(seconds: 10), (timer) async {
-          if (!mounted) {
-            timer.cancel();
-            return;
-          }
+      void listener() {
+        responded = true;
+        checkConnectivityNotifier.removeListener(listener);
+        _dismissSnackbar();
+      }
 
-          bool responseReceived = false;
+      checkConnectivityNotifier.addListener(listener);
+      WebSocketService().sendMessage({"query": "check-connection"});
 
-          void listener() {
-            responseReceived = true;
-            checkConnectivityNotifier!.removeListener(listener);
-            if (snackbarShowing) {
-              _dismissSnackbar();
-            }
-          }
+      await Future.delayed(const Duration(seconds: 10));
+      checkConnectivityNotifier.removeListener(listener);
 
-          // Add temporary listener for 10 seconds
-          checkConnectivityNotifier!.addListener(listener);
+      if (!responded) {
+        _attemptAutoReconnect();
+      }
+    });
+  }
 
-          // 🔁 Send the check message
-          final ws = WebSocketService();
-          ws.sendMessage({
-            "query": "check-connection"
-          });
+  void _attemptAutoReconnect() async {
+    if (_snackbarVisible) return;
+    _showWebSocketSnack("Reconnecting...");
 
-          // Wait 10 seconds max for response
-          await Future.delayed(const Duration(seconds: 10));
+    try {
+      final ws = WebSocketService();
+      await ws.connect(
+        GlobalProviders.userId,
+        Provider.of<LiveDatabaseChange>(context, listen: false),
+        Provider.of<ReconnectivityNotifier>(context, listen: false),
+        Provider.of<NotificationDatabaseChange>(context, listen: false),
+        Provider.of<CheckConnectivityNotifier>(context, listen: false),
+        Provider.of<DatabaseDataUpdatedNotifier>(context, listen: false),
+        Provider.of<BubbleButtonClickUpdateNotifier>(context, listen: false),
+        Provider.of<NotificationPathNotifier>(context, listen: false),
+      ).timeout(const Duration(seconds: 5));
 
-          if (!responseReceived) {
-            checkConnectivityNotifier!.removeListener(listener);
-            if (!snackbarShowing) {
-              _showWebSocketSnack();
-            }
-          }
-        });
+      bool success = false;
+      void reconnectionListener() {
+        success = true;
+        Provider.of<ReconnectivityNotifier>(context, listen: false)
+            .removeListener(reconnectionListener);
+      }
 
+      Provider.of<ReconnectivityNotifier>(context, listen: false)
+          .addListener(reconnectionListener);
 
-        _timerInitialized = true;
-      });
+      WebSocketService().sendMessage({"query": "reconnection-check"});
+      await Future.delayed(const Duration(seconds: 3));
+
+      if (success) {
+        WebSocketService.isConnected = true;
+        _dismissSnackbar();
+        widget.onReconnectSuccess();
+      } else {
+        _showWebSocketSnack("Reconnect failed. Retrying...");
+      }
+    } catch (_) {
+      _showWebSocketSnack("Reconnect error. Retrying...");
     }
   }
 
-  void _checkConnectivity() async {
-    var results = await Connectivity().checkConnectivity();
-    final connected = results.any((r) => r != ConnectivityResult.none);
-    if (mounted && _hasInternet != connected) {
-      setState(() {
-        _hasInternet = connected;
-      });
-      _showConnectivitySnack();
-    }
+  void _showConnectivitySnack(bool connected) {
+    _showSnackBar(
+      connected ? '✅ Internet reconnected' : '⚠️ No internet connection',
+      connected ? Colors.green : Colors.orange,
+    );
   }
 
-  Future<void> _showConnectivitySnack() async {
-    final isConnected = _hasInternet;
-    final message = isConnected ? '✅ Internet reconnected' : '⚠️ No internet connection';
-    final color = isConnected ? Colors.green : Colors.orange;
+  void _showSnackBar(String message, Color backgroundColor) {
+    if (_snackbarVisible) return;
 
-    if (isConnected) {
-      await _dismissSnackbar(); // Dismiss on reconnection
-    } else {
-      _showSnackBar(message, color);
-    }
-  }
-
-
-  void _showWebSocketSnack() {
-    snackbarShowing=true;
+    _snackbarVisible = true;
     showTopSnackBar(
       snackBarPosition: SnackBarPosition.bottom,
-      safeAreaValues: SafeAreaValues(minimum: EdgeInsets.only(bottom: 30)),
+      safeAreaValues: SafeAreaValues(minimum: const EdgeInsets.only(top: 80)),
       Overlay.of(context),
       Container(
         decoration: BoxDecoration(
-          color: Color(0xFFB71C1C),
+          color: backgroundColor,
           borderRadius: BorderRadius.circular(20),
         ),
+        padding: const EdgeInsets.all(20),
+        child: Text(
+          message,
+          style: GoogleFonts.poppins(
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+            fontSize: 10.sp,
+            decoration: TextDecoration.none,
+          ),
+        ),
+      ),
+      persistent: true,
+      dismissType: DismissType.none,
+      onAnimationControllerInit: (controller) {
+        topSnackBarController = controller;
+      },
+    );
+  }
+
+  void _showWebSocketSnack(String message) {
+    _snackbarVisible = true;
+    showTopSnackBar(
+      snackBarPosition: SnackBarPosition.bottom,
+      safeAreaValues: SafeAreaValues(minimum: const EdgeInsets.only(bottom: 30)),
+      Overlay.of(context),
+      Container(
+        decoration: BoxDecoration(
+          color: const Color(0xFFB71C1C),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        padding: const EdgeInsets.all(20),
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Padding(
-              padding: const EdgeInsets.all(20),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    "❌ WebSocket disconnected",
-                    style: GoogleFonts.poppins(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                      fontSize: 10.sp,
-                      decoration: TextDecoration.none,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Bounceable(
-                onTap: () async {
-                  if (!reconnecting) {
-                    _dismissSnackbar();
-                    await Future.delayed(const Duration(milliseconds: 100));
-                    _showWebSocketSnack(); // show again with loading
-                  }
-
-                  setState(() {
-                    reconnecting = true;
-                  });
-
-                  try {
-                    final ws = WebSocketService();
-
-                    await ws.connect(
-                      GlobalProviders.userId,
-                      Provider.of<LiveDatabaseChange>(context, listen: false),
-                      Provider.of<ReconnectivityNotifier>(context, listen: false),
-                      Provider.of<NotificationDatabaseChange>(context, listen: false),
-                      Provider.of<CheckConnectivityNotifier>(context, listen: false),
-                      Provider.of<DatabaseDataUpdatedNotifier>(context, listen: false),
-                      Provider.of<BubbleButtonClickUpdateNotifier>(context, listen: false),
-                      Provider.of<NotificationPathNotifier>(context, listen: false),
-                    ).timeout(const Duration(seconds: 5), onTimeout: () {
-                      throw TimeoutException("WebSocket connection timed out");
-                    });
-
-                    // ✅ Use ReconnectivityNotifier here
-                    final reconnectivityNotifier = Provider.of<ReconnectivityNotifier>(context, listen: false);
-
-                    bool reconnected = false;
-
-                    void listener() {
-                      reconnected = true;
-                      reconnectivityNotifier.removeListener(listener);
-                    }
-
-                    reconnectivityNotifier.addListener(listener);
-
-                    ws.sendMessage({
-                      "query": "reconnection-check"
-                    });
-
-                    // Wait up to 3 seconds for notifier to trigger
-                    await Future.delayed(const Duration(seconds: 3));
-
-                    reconnectivityNotifier.removeListener(listener);
-
-                    if (reconnected) {
-                      WebSocketService.isConnected = true;
-                      widget.onReconnectSuccess();
-                      _dismissSnackbar();
-                    } else {
-                      setState(() {
-                        reconnecting = false;
-                      });
-                      _dismissSnackbar();
-                      _showWebSocketSnack();
-                    }
-                  } catch (e) {
-                    setState(() {
-                      reconnecting = false;
-                    });
-                    _dismissSnackbar();
-                    _showWebSocketSnack();
-                  }
-                },
-              child: Container(
-                decoration: BoxDecoration(
-                  color: reconnecting ? Colors.transparent : Color(0xFF3DB070),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      if (!reconnecting)
-                        Text(
-                          "Reconnect",
-                          style: GoogleFonts.poppins(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                            fontSize: 10.sp,
-                            decoration: TextDecoration.none,
-                          ),
-                        ),
-                      if (reconnecting)
-                        const SizedBox(
-                            width: 10,
-                            height: 10,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 12,
-                            )),
-                    ],
-                  ),
-                ),
+            const Icon(Icons.warning, color: Colors.white, size: 20),
+            const SizedBox(width: 10),
+            Text(
+              message,
+              style: GoogleFonts.poppins(
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+                fontSize: 10.sp,
+                decoration: TextDecoration.none,
               ),
             ),
           ],
@@ -278,63 +196,16 @@ class _AlertWidgetState extends State<AlertWidget> {
   }
 
   Future<void> _dismissSnackbar() async {
-    try {
-      if (topSnackBarController != null && topSnackBarController!.isCompleted) {
-        await topSnackBarController!.reverse();
-      }
-    } catch (_) {}
-
-    topSnackBarController = null;
-    snackbarShowing = false;
-    reconnecting = false;
-  }
-
-
-
-  void _showSnackBar(String message, Color backgroundColor) {
-    if (snackbarShowing) return; // Prevent multiple snackbars
-    snackbarShowing = true;
-
-    showTopSnackBar(
-      snackBarPosition: SnackBarPosition.bottom,
-      safeAreaValues: SafeAreaValues(minimum: EdgeInsets.only(top: 80)),
-      Overlay.of(context),
-      Container(
-        decoration: BoxDecoration(
-          color: Color(0xFFB71C1C),
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                message,
-                style: GoogleFonts.poppins(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                  fontSize: 10.sp,
-                  decoration: TextDecoration.none,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-      persistent: true,
-      dismissType: DismissType.none,
-      onAnimationControllerInit: (controller) {
-        topSnackBarController = controller;
-      },
-    );
+    if (topSnackBarController != null && topSnackBarController!.isCompleted) {
+      await topSnackBarController!.reverse();
+    }
+    _snackbarVisible = false;
   }
 
   @override
   void dispose() {
     _connectivitySubscription.cancel();
-    _webSocketCheckTimer.cancel(); // prevent memory leaks
-
+    _webSocketCheckTimer.cancel();
     super.dispose();
   }
 

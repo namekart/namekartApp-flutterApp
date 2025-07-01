@@ -4,15 +4,22 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bounceable/flutter_bounceable.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hive_flutter/adapters.dart';
 import 'package:namekart_app/screens/features/BiddingList.dart';
 import 'package:namekart_app/screens/features/WatchList.dart';
 import 'package:namekart_app/screens/features/BulkBid.dart';
 import 'package:namekart_app/screens/features/BulkFetch.dart';
 import 'package:namekart_app/screens/home_screen/tabs/channels_tab.dart';
+import 'package:namekart_app/screens/home_screen/tabs/profile_options/FirestoreInfo.dart';
 import 'package:namekart_app/screens/live_screens/live_details_screen.dart';
 import 'package:namekart_app/screens/search_screen/SearchScreen.dart';
 import 'package:namekart_app/database/HiveHelper.dart';
 import 'package:namekart_app/activity_helpers/UIHelpers.dart';
+import 'package:provider/provider.dart';
+
+import '../../../activity_helpers/FirestoreHelper.dart';
+import '../../../activity_helpers/GlobalFunctions.dart';
+import '../../../change_notifiers/AllDatabaseChangeNotifiers.dart';
 
 class HomeTab extends StatefulWidget {
   const HomeTab({Key? key}) : super(key: key);
@@ -23,17 +30,51 @@ class HomeTab extends StatefulWidget {
 
 class _HomeTabState extends State<HomeTab> {
   List<String> ringAlarmActiveList = [];
+  late NotificationDatabaseChange notificationDatabaseChange;
+
+  int readDropcatch = 0;
+  int readDynadot = 0;
+  int readGodaddy = 0;
+  int readNamecheap = 0;
+  int readNamesilo = 0;
+  int readSav = 0;
 
   @override
   void initState() {
     super.initState();
-
     getRingAlarmList();
+
+    getReadCount();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Clean up old listener if it exists
+      notificationDatabaseChange =
+          Provider.of<NotificationDatabaseChange>(context, listen: false);
+      notificationDatabaseChange.addListener(getReadCount);
+    });
   }
 
+  void getReadCount() {
+    setState(() {
+      readGodaddy =
+          HiveHelper.getUnreadCountFlexible("notifications~AMP-LIVE~Live-GD");
+      readDynadot =
+          HiveHelper.getUnreadCountFlexible("notifications~AMP-LIVE~Live-DD");
+      readDropcatch =
+          HiveHelper.getUnreadCountFlexible("notifications~AMP-LIVE~Live-DC");
+      readNamecheap =
+          HiveHelper.getUnreadCountFlexible("notifications~AMP-LIVE~Live-NC");
+      readNamesilo =
+          HiveHelper.getUnreadCountFlexible("notifications~AMP-LIVE~Live-NS");
+      readSav =
+          HiveHelper.getUnreadCountFlexible("notifications~AMP-LIVE~Live-SAV");
+    });
 
+    print(
+        "readDropcatch: $readDropcatch, readDynadot: $readDynadot, readGodaddy: $readGodaddy, readNamecheap: $readNamecheap, readNamesilo: $readNamesilo, readSav: $readSav");
+  }
 
-    Future<void> getRingAlarmList() async {
+  Future<void> getRingAlarmList() async {
     setState(() {
       ringAlarmActiveList = HiveHelper.getRingAlarmPaths()
           .where((e) => !e.startsWith("live~all"))
@@ -54,31 +95,57 @@ class _HomeTabState extends State<HomeTab> {
   Widget build(BuildContext context) {
     return SingleChildScrollView(
       child: Container(
-        color: Colors.white,
-        child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start, children: [
+        color: Color(0xffF7F7F7),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           buildCriticalErrorBanner(
             context,
             ringAlarmActiveList,
-                () => setState(() => ringAlarmActiveList.clear()),
+            () => setState(() => ringAlarmActiveList.clear()),
           ),
           _buildSearchBar(context),
-          _sectionHeader("Live Status", onSeeAllTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                  builder: (context) => LiveDetailsScreen(
-                    img: "assets/images/bubbles_images/seeall.png",
-                    mainCollection: "live",
-                    subCollection: "all",
-                    subSubCollection: "auctions",
-                    showHighlightsButton: true,
-                  )),
-            );
-          }),
-          _liveStatusRow(),
-          _sectionHeader("Auction Tools"),
-          _auctionToolsRow(),
+          Padding(
+            padding: const EdgeInsets.all(10),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Color(0xffFFFFFF),
+                border: Border.all(color: Colors.black12, width: 1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Column(
+                children: [
+                  _sectionHeader("Live Status", onSeeAllTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => LiveDetailsScreen(
+                                img: "assets/images/bubbles_images/seeall.png",
+                                mainCollection: "live",
+                                subCollection: "all",
+                                subSubCollection: "auctions",
+                                showHighlightsButton: true,
+                              )),
+                    );
+                  }),
+                  _liveStatusRow(),
+                ],
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(10),
+            child: Container(
+                decoration: BoxDecoration(
+                  color: Color(0xffFFFFFF),
+                  border: Border.all(color: Colors.black12, width: 1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Column(
+                  children: [
+                    _sectionHeader("Auction Tools"),
+                    _auctionToolsRow(),
+                  ],
+                )),
+          ),
           Padding(
             padding: const EdgeInsets.all(20),
             child: Column(
@@ -104,11 +171,11 @@ class _HomeTabState extends State<HomeTab> {
 
   Widget _buildSearchBar(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(10),
       child: GestureDetector(
         onTap: () {
-          Navigator.push(context,
-              MaterialPageRoute(builder: (context) => Search()));
+          Navigator.push(
+              context, MaterialPageRoute(builder: (context) => Search()));
         },
         child: Container(
           decoration: BoxDecoration(
@@ -121,7 +188,7 @@ class _HomeTabState extends State<HomeTab> {
                   blurRadius: 0.5)
             ],
           ),
-          padding: const EdgeInsets.all(10),
+          padding: const EdgeInsets.all(15),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -140,7 +207,7 @@ class _HomeTabState extends State<HomeTab> {
 
   Widget _sectionHeader(String title, {VoidCallback? onSeeAllTap}) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -153,7 +220,7 @@ class _HomeTabState extends State<HomeTab> {
             GestureDetector(
               onTap: onSeeAllTap,
               child: text(
-                  text: "See All",
+                  text: "",
                   fontWeight: FontWeight.bold,
                   color: Color(0xff717171),
                   size: 8.sp),
@@ -165,15 +232,17 @@ class _HomeTabState extends State<HomeTab> {
 
   Widget _liveStatusRow() {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 30,top: 10 ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      padding: const EdgeInsets.only(bottom: 20, top: 10),
+      child: Wrap(
+        spacing: 40,
+        runSpacing: 20,
         children: [
           _LiveStatusImage("livelogos/dropcatch", "Dropcatch"),
           _LiveStatusImage("livelogos/dynadot", "Dynadot"),
           _LiveStatusImage("livelogos/godaddy", "Godaddy"),
           _LiveStatusImage("livelogos/namecheap", "Namecheap"),
           _LiveStatusImage("livelogos/namesilo", "Namesilo"),
+          SizedBox(width: 45, child: _LiveStatusImage("livelogos/sav", "SAV")),
         ],
       ),
     );
@@ -181,7 +250,7 @@ class _HomeTabState extends State<HomeTab> {
 
   Widget _auctionToolsRow() {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 30,top: 10),
+      padding: const EdgeInsets.only(bottom: 20, top: 10),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
@@ -190,16 +259,16 @@ class _HomeTabState extends State<HomeTab> {
                   MaterialPageRoute(builder: (context) => BiddingList())),
               child: _LiveStatusImage("features/biddinglist", "Bidding List")),
           Bounceable(
-              onTap: () => Navigator.push(
-                  context, MaterialPageRoute(builder: (context) => WatchList())),
+              onTap: () => Navigator.push(context,
+                  MaterialPageRoute(builder: (context) => WatchList())),
               child: _LiveStatusImage("features/watchlist", "Watch List")),
           Bounceable(
               onTap: () => Navigator.push(
                   context, MaterialPageRoute(builder: (context) => BulkBid())),
               child: _LiveStatusImage("features/bulkbid", "Bulk Bid")),
           Bounceable(
-              onTap: () => Navigator.push(
-                  context, MaterialPageRoute(builder: (context) => BulkFetch())),
+              onTap: () => Navigator.push(context,
+                  MaterialPageRoute(builder: (context) => BulkFetch())),
               child: _LiveStatusImage("features/bulkfetch", "Bulk Fetch")),
         ],
       ),
@@ -207,48 +276,107 @@ class _HomeTabState extends State<HomeTab> {
   }
 
   Widget _LiveStatusImage(String image, String title) {
-    return Bounceable(
-      onTap: (){
-        Navigator.push(
-          context,
-          PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) =>
-                LiveDetailsScreen(
-                  img: "assets/images/home_screen_images/$image.png",
-                  mainCollection: "live",
-                  subCollection: title.toLowerCase(),
-                  subSubCollection: "auctions",
-                  showHighlightsButton: true,
+    String subSubCollectionName = image.contains("dropcatch")
+        ? "Live-DC"
+        : image.contains("dynadot")
+            ? "Live-DD"
+            : image.contains("godaddy")
+                ? "Live-GD"
+                : image.contains("namecheap")
+                    ? "Live-NC"
+                    : image.contains("sav")
+                        ? "Live-SAV"
+                        : image.contains("namesilo")
+                            ? "Live-NS"
+                            : "";
+
+    String readCount = image.contains("dropcatch")
+        ? readDropcatch.toString()
+        : image.contains("dynadot")
+            ? readDynadot.toString()
+            : image.contains("godaddy")
+                ? readGodaddy.toString()
+                : image.contains("namecheap")
+                    ? readNamecheap.toString()
+                    : image.contains("sav")
+                        ? readSav.toString()
+                        : image.contains("namesilo")
+                            ? readNamesilo.toString()
+                            : "0";
+
+    return image.contains("features")
+        ? Column(
+            children: [
+              Image.asset(
+                "assets/images/home_screen_images/$image.png",
+                width: image.contains("livelogos") ? 25.sp : 20.sp,
+                height: image.contains("livelogos") ? 25.sp : 20.sp,
+                color: image.contains("livelogos") ? null : Colors.red,
+              ),
+              SizedBox(height: 10),
+              text(
+                  text: title,
+                  size: 8,
+                  color: Color(0xff717171),
+                  fontWeight: FontWeight.w300),
+            ],
+          )
+        : Bounceable(
+            onTap: () async {
+              if (image.contains("features")) return;
+              await Navigator.push(
+                context,
+                PageRouteBuilder(
+                  pageBuilder: (context, animation, secondaryAnimation) =>
+                      LiveDetailsScreen(
+                    img: "assets/images/home_screen_images/$image.png",
+                    mainCollection: "notifications",
+                    subCollection: "AMP-LIVE",
+                    subSubCollection: subSubCollectionName,
+                    showHighlightsButton: true,
+                  ),
+                  transitionsBuilder:
+                      (context, animation, secondaryAnimation, child) {
+                    return FadeTransition(
+                      opacity: CurvedAnimation(
+                          parent: animation, curve: Curves.easeIn),
+                      child: child,
+                    );
+                  },
+                  transitionDuration: Duration(milliseconds: 350),
                 ),
-            transitionsBuilder:
-                (context, animation, secondaryAnimation, child) {
-              return FadeTransition(
-                opacity:
-                CurvedAnimation(parent: animation, curve: Curves.easeIn),
-                child: child,
               );
+              Future.delayed(const Duration(seconds: 1), () {
+                getReadCount();
+              });
             },
-            transitionDuration: Duration(milliseconds: 350),
-          ),
-        );
-      },
-      child: Column(
-        children: [
-          Image.asset(
-            "assets/images/home_screen_images/$image.png",
-            width: image.contains("livelogos") ? 25.sp : 20.sp,
-            height: image.contains("livelogos") ? 25.sp : 20.sp,
-            color: image.contains("livelogos") ? null : Colors.black54,
-          ),
-          SizedBox(height: 10),
-          text(
-              text: title,
-              size: 8,
-              color: Color(0xff717171),
-              fontWeight: FontWeight.w300),
-        ],
-      ),
-    );
+            child: Column(children: [
+              Image.asset(
+                "assets/images/home_screen_images/$image.png",
+                width: image.contains("livelogos") ? 25.sp : 20.sp,
+                height: image.contains("livelogos") ? 25.sp : 20.sp,
+                color: image.contains("livelogos") ? null : Colors.red,
+              ),
+              SizedBox(height: 10),
+              text(
+                  text: title,
+                  size: 8,
+                  color: Color(0xff717171),
+                  fontWeight: FontWeight.w300),
+              if (readCount != "0") ...[
+                SizedBox(
+                  height: 5,
+                ),
+                Container(
+                  child: text(
+                      text: "$readCount New!",
+                      size: 5.sp,
+                      color: Colors.green,
+                      fontWeight: FontWeight.w300),
+                ),
+              ],
+            ]),
+          );
   }
 
   Widget buildCriticalErrorBanner(
@@ -267,7 +395,7 @@ class _HomeTabState extends State<HomeTab> {
           children: [
             Padding(
               padding:
-              const EdgeInsets.symmetric(horizontal: 15.0, vertical: 10),
+                  const EdgeInsets.symmetric(horizontal: 15.0, vertical: 10),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -300,11 +428,11 @@ class _HomeTabState extends State<HomeTab> {
                       MaterialPageRoute(
                           builder: (_) => isLive
                               ? LiveDetailsScreen(
-                              img: imgPath,
-                              mainCollection: parts[0],
-                              subCollection: parts[1],
-                              subSubCollection: parts[2],
-                              showHighlightsButton: true)
+                                  img: imgPath,
+                                  mainCollection: parts[0],
+                                  subCollection: parts[1],
+                                  subSubCollection: parts[2],
+                                  showHighlightsButton: true)
                               : ChannelsTab()),
                     );
                   },

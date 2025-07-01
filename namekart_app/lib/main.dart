@@ -46,6 +46,7 @@ void main() async {
         ChangeNotifierProvider(create: (context) => DatabaseDataUpdatedNotifier()),
         ChangeNotifierProvider(create: (context) => BubbleButtonClickUpdateNotifier()),
         ChangeNotifierProvider(create: (context) => NotificationPathNotifier()),
+        ChangeNotifierProvider(create: (context) => CurrentDateChangeNotifier()),
       ],
       child: MyApp(),
     ),
@@ -74,24 +75,20 @@ class MyApp extends StatelessWidget {
     WebSocketService.onBroadcastMessage.listen((onData){
       print("ondata $onData");
     });
-    return AlertWidget(
-      onReconnectSuccess:(){},
-      path: '',
-      child: ScreenUtilInit(
-        designSize: const Size(360, 690),
-        builder: (context, child) => MaterialApp(
-          initialRoute: '/',
-          routes: {
-            'home': (context) => HomeScreen(),
-          },
-          title: 'Flutter Demo',
-          theme: ThemeData(
-            colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-            useMaterial3: true,
-          ),
-          debugShowCheckedModeBanner: false,
-          home: LoginScreen(),
+    return ScreenUtilInit(
+      designSize: const Size(360, 690),
+      builder: (context, child) => MaterialApp(
+        initialRoute: '/',
+        routes: {
+          'home': (context) => HomeScreen(),
+        },
+        title: 'Flutter Demo',
+        theme: ThemeData(
+          colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+          useMaterial3: true,
         ),
+        debugShowCheckedModeBanner: false,
+        home: LoginScreen(),
       ),
     );
   }

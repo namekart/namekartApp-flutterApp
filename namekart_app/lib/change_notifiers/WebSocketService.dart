@@ -23,15 +23,14 @@ class WebSocketService with ChangeNotifier {
   static Stream<String> get onUserMessage => _userController.stream;
 
   Future<void> connect(
-    String userId,
-    LiveDatabaseChange liveDatabaseChange,
-    ReconnectivityNotifier reconnectivityNotifier,
-    NotificationDatabaseChange notificationDatabaseChange,
-    CheckConnectivityNotifier checkConnectivityNotifier,
-    DatabaseDataUpdatedNotifier databaseDataUpdatedNotifier,
-    BubbleButtonClickUpdateNotifier bubbleButtonClickUpdateNotifier,
-      NotificationPathNotifier notificationPathNotifier
-  ) async {
+      String userId,
+      LiveDatabaseChange liveDatabaseChange,
+      ReconnectivityNotifier reconnectivityNotifier,
+      NotificationDatabaseChange notificationDatabaseChange,
+      CheckConnectivityNotifier checkConnectivityNotifier,
+      DatabaseDataUpdatedNotifier databaseDataUpdatedNotifier,
+      BubbleButtonClickUpdateNotifier bubbleButtonClickUpdateNotifier,
+      NotificationPathNotifier notificationPathNotifier) async {
     if (userId.isEmpty) {
       print("User ID is required to connect.");
       return;
@@ -68,8 +67,7 @@ class WebSocketService with ChangeNotifier {
 
             if (path.contains("live")) {
               liveDatabaseChange.notifyLiveDatabaseChange(path);
-              HiveHelper.addDataToHive(
-                  "live~all~auctions", data['datetime_id'].toString(), data);
+              HiveHelper.addDataToHive("live~all~auctions", data['datetime_id'].toString(), data);
             } else if (path.contains("notifications")) {
               liveDatabaseChange.notifyLiveDatabaseChange(path);
               notificationDatabaseChange.notifyNotificationDatabaseChange();
@@ -83,7 +81,8 @@ class WebSocketService with ChangeNotifier {
             Map<String, dynamic> data = jsonDecode(jsonMessage["data"]);
             String path = jsonMessage["path"];
 
-            HiveHelper.updateDataOfHive(path, data['datetime_id'].toString(), data);
+            HiveHelper.updateDataOfHive(path, data['datetime_id'], data);
+
             databaseDataUpdatedNotifier.notifyDatabaseDataUpdated(path);
             bubbleButtonClickUpdateNotifier.notifyBubbleButtonClickUpdateNotifier();
 
@@ -92,14 +91,13 @@ class WebSocketService with ChangeNotifier {
 
           // ✅ Handle request-response logic (user message)
 
-          else if(jsonMessage.toString().contains("check-connection")){
+          else if (jsonMessage.toString().contains("check-connection")) {
             checkConnectivityNotifier.notifyCheckConnectivityNotifier();
-          }
-
-          else if(jsonMessage.toString().contains("reconnection-check")){
+          } else if (jsonMessage.toString().contains("reconnection-check")) {
             reconnectivityNotifier.notifyReconnectivityNotifier();
-          }
-          else if(jsonMessage.toString().contains("firebase-all_collection_info")){
+          } else if (jsonMessage
+              .toString()
+              .contains("firebase-all_collection_info")) {
             await addAllCloudPath(message);
             notificationPathNotifier.notifyNotificationPathNotifier();
           }

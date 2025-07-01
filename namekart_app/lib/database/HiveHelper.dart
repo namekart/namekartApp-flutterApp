@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:hive_flutter/adapters.dart';
 import 'package:uuid/uuid.dart';
 
@@ -7,17 +9,17 @@ class HiveHelper {
   static final _uuid = Uuid();
 
   /// Fetch root structure safely
-  static Map<String, dynamic> _getRoot() {
+  static Map<dynamic, dynamic> _getRoot() {
     final raw = _box.get(rootKey);
-    return raw == null ? {} : Map<String, dynamic>.from(raw);
+    return raw == null ? {} : Map<dynamic, dynamic>.from(raw);
   }
 
   /// Save updated root structure
-  static void _saveRoot(Map<String, dynamic> root) {
+  static void _saveRoot(Map<dynamic, dynamic> root) {
     _box.put(rootKey, root);
   }
 
-  static Future<String> addDataToHive(String path, String id, Map<String, dynamic> info) async {
+  static Future<String> addDataToHive(String path, String id, Map<dynamic, dynamic> info) async {
     final parts = path.split('~').where((p) => p.isNotEmpty).toList();
 
     if (parts.isEmpty && path.isNotEmpty) {
@@ -27,12 +29,12 @@ class HiveHelper {
     final root = _getRoot();
 
     // Traverse to the parent node
-    Map<String, dynamic> node = root;
+    Map<dynamic, dynamic> node = root;
     for (final part in parts) {
       if (!node.containsKey(part)) {
-        node[part] = <String, dynamic>{};
+        node[part] = <dynamic, dynamic>{};
       } else {
-        node[part] = Map<String, dynamic>.from(node[part]);
+        node[part] = Map<dynamic, dynamic>.from(node[part]);
       }
       node = node[part];
     }
@@ -60,7 +62,7 @@ class HiveHelper {
     return usedKey;
   }
 
-  static Future<String> updateDataOfHive(String path, String id, Map<String, dynamic> info) async {
+  static Future<String> updateDataOfHive(String path, String id, Map<dynamic, dynamic> info) async {
     final parts = path.split('~').where((p) => p.isNotEmpty).toList();
 
     if (parts.isEmpty && path.isNotEmpty) {
@@ -70,13 +72,13 @@ class HiveHelper {
     final root = _getRoot();
 
     // Traverse to the parent node (stop before the last part if it matches the id)
-    Map<String, dynamic> node = root;
+    Map<dynamic, dynamic> node = root;
     for (int i = 0; i < parts.length - 1; i++) {
       final part = parts[i];
       if (!node.containsKey(part)) {
         throw Exception('Path part $part does not exist');
       } else {
-        node[part] = Map<String, dynamic>.from(node[part]);
+        node[part] = Map<dynamic, dynamic>.from(node[part]);
       }
       node = node[part];
     }
@@ -93,14 +95,14 @@ class HiveHelper {
     }
 
     // Optional: Clean up unexpected 'id' key in the parent node
-    if (node.containsKey('id')) {
-      node.remove('id');
+    if (node.containsKey('datetime_id')) {
+      node.remove('datetime_id');
     }
 
     // Replace the existing entry with the new info
     String usedKey = id;
     node[id] = {
-      'id': id,
+      'datetime_id': id,
       ...info,
     };
 
@@ -114,9 +116,10 @@ class HiveHelper {
     final root = _getRoot();
     dynamic node = root;
 
+
     for (final part in parts) {
       if (node is Map && node.containsKey(part)) {
-        node = Map<String, dynamic>.from(node[part]);
+        node = Map<dynamic, dynamic>.from(node[part]);
       } else {
         return null;
       }
@@ -136,11 +139,11 @@ class HiveHelper {
       return;
     }
 
-    Map<String, dynamic> node = root;
+    Map<dynamic, dynamic> node = root;
     for (int i = 0; i < parts.length - 1; i++) {
       final part = parts[i];
       if (node.containsKey(part)) {
-        node[part] = Map<String, dynamic>.from(node[part]);
+        node[part] = Map<dynamic, dynamic>.from(node[part]);
         node = node[part];
       } else {
         return;
@@ -153,79 +156,88 @@ class HiveHelper {
 
 
   /// Get a specific item by ID
-  static Map<String, dynamic>? getById(String path, String id) {
+  static Map<dynamic, dynamic>? getById(String path, String id) {
     final parts = path.split('/').where((p) => p.isNotEmpty).toList();
     final root = _getRoot();
     dynamic node = root;
 
     for (final part in parts) {
       if (node is Map && node.containsKey(part)) {
-        node = Map<String, dynamic>.from(node[part]);
+        node = Map<dynamic, dynamic>.from(node[part]);
       } else {
         return null;
       }
     }
 
     if (node is Map && node.containsKey(id)) {
-      return Map<String, dynamic>.from(node[id]);
+      return Map<dynamic, dynamic>.from(node[id]);
     }
 
     return null;
   }
 
   /// List child keys at any path
-  static List<String> getKeys(String path) {
+  static List getKeys(String path) {
     final data = read(path);
-    if (data is Map<String, dynamic>) {
+    if (data is Map<dynamic, dynamic>) {
       return data.keys.toList();
     }
     return [];
   }
 
   /// Get the last (latest) element at a given path based on numeric ID
-  static Map<String, dynamic>? getLast(String path) {
-    final data = read(path);
-    if (data is Map<String, dynamic>) {
-      final entries = data.entries
-          .where((e) => e.value is Map<String, dynamic> && e.value['datetime'] != null)
-          .map((e) => MapEntry(
-        e.key,
-        {
-          ...Map<String, dynamic>.from(e.value),
-          'parsedDatetime': DateTime.tryParse(e.value['datetime']),
-        },
-      ))
-          .where((e) => e.value['parsedDatetime'] != null)
-          .toList();
+  static Map<dynamic, dynamic>? getLast(String path) {
+    final rawData = read(path);
 
-      if (entries.isEmpty) return null;
+    if (rawData == null) return null;
 
-      entries.sort((a, b) =>
-          (a.value['parsedDatetime'] as DateTime).compareTo(b.value['parsedDatetime'] as DateTime));
-
-      final latestEntry = entries.last.value;
-      latestEntry.remove('parsedDatetime'); // clean up before returning
-      return latestEntry;
+    dynamic data;
+    try {
+      data = (rawData is String) ? jsonDecode(rawData) : rawData;
+    } catch (_) {
+      return null;
     }
-    return null;
+
+    if (data is! Map<dynamic, dynamic>) return null;
+
+    Map<dynamic, dynamic>? latestValue;
+    DateTime? latestTime;
+
+    for (final entry in data.entries) {
+      final value = entry.value;
+
+      if (value is Map<dynamic, dynamic>) {
+        final dtId = value['datetime_id'] ?? entry.key;
+        final parsed = DateTime.tryParse(dtId);
+
+        if (parsed == null) continue;
+
+        if (latestTime == null || parsed.isAfter(latestTime)) {
+          latestTime = parsed;
+          latestValue = Map<dynamic, dynamic>.from(value);
+        }
+      }
+    }
+
+    return latestValue;
   }
 
-  static List<Map<String, dynamic>> getDataForDate(String path, String targetDate) {
+
+
+  static List<Map<dynamic, dynamic>> getDataForDate(String path, String targetDate) {
     final data = read(path);
-    if (data is! Map<String, dynamic>) return [];
+    if (data is! Map<dynamic, dynamic>) return [];
 
-
-
-    final matchedItems = <Map<String, dynamic>>[];
+    final matchedItems = <Map<dynamic, dynamic>>[];
 
     data.forEach((key, value) {
-      if (value.containsKey('datetime')) {
+      if (value.containsKey('datetime_id')) {
         try {
-          final entryDateOnly = value['datetime'];
+          final entryDateOnly = value['datetime_id'];
 
 
           if (entryDateOnly.toString().contains(targetDate)) {
-            matchedItems.add(Map<String, dynamic>.from(value));
+            matchedItems.add(Map<dynamic, dynamic>.from(value));
           }
         } catch (e) {
           print('Debug: Error parsing datetime for key $key: $e');
@@ -235,15 +247,40 @@ class HiveHelper {
 
     return matchedItems;
   }
+  static List<Map<dynamic, dynamic>> getFullData(String path) {
+    final data = read(path);
+    if (data is! Map<dynamic, dynamic>) return [];
+
+    final matchedItems = <Map<dynamic, dynamic>>[];
+
+    data.forEach((key, value) {
+      if (value is Map && value.containsKey('datetime_id')) {
+        final dt = DateTime.tryParse(value['datetime_id'].toString());
+        if (dt != null) {
+          matchedItems.add(Map<dynamic, dynamic>.from(value));
+        }
+      }
+    });
+
+    // Sort by datetime_id descending (newest first)
+    matchedItems.sort((a, b) {
+      final aDate = DateTime.parse(a['datetime_id']);
+      final bDate = DateTime.parse(b['datetime_id']);
+      return bDate.compareTo(aDate);
+    });
+
+    return matchedItems;
+  }
+
 
   static DateTime? getFirstDate(String path) {
     final data = read(path);
-    if (data is! Map<String, dynamic>) return null;
+    if (data is! Map<dynamic, dynamic>) return null;
 
     DateTime? earliest;
 
     data.forEach((key, value) {
-      if (value is Map<String, dynamic> && value.containsKey('datetime')) {
+      if (value is Map<dynamic, dynamic> && value.containsKey('datetime')) {
         try {
           final dt = DateTime.parse(value['datetime']);
           if (earliest == null || dt.isBefore(earliest!)) {
@@ -260,9 +297,9 @@ class HiveHelper {
 
 
 
-  static Future<Map<String, dynamic>> getPaginatedAuctions(String path, int startIndex) async {
+  static Future<Map<dynamic, dynamic>> getPaginatedAuctions(String path, int startIndex) async {
     final data = read(path);
-    if (data is! Map<String, dynamic>) {
+    if (data is! Map<dynamic, dynamic>) {
       return {
         'items': [],
         'count': startIndex,
@@ -284,7 +321,7 @@ class HiveHelper {
 
     // Collect the items
     final items = pagedKeys.map((id) {
-      final item = Map<String, dynamic>.from(data[id.toString()]);
+      final item = Map<dynamic, dynamic>.from(data[id.toString()]);
       return item;
     }).toList();
 
@@ -297,57 +334,87 @@ class HiveHelper {
     };
   }
 
-  /// Count all 'read' == 'no' items from flexible depth
+  /// Count all direct children under [path] whose 'read' == 'no'
   static int getUnreadCountFlexible(String path) {
-    final parts = path.split('~').where((p) => p.isNotEmpty).toList();
-    final root = _getRoot();
+    final node = read(path);
+    if (node is! Map<dynamic, dynamic>) return 0;
 
-    dynamic node = root;
-    for (final part in parts) {
-      if (node is Map && node.containsKey(part)) {
-        node[part] = Map<String, dynamic>.from(node[part]);
-        node = node[part];
-      } else {
-        return 0;
+
+    int count = 0;
+    node.forEach((key, value) {
+      if (value is Map<dynamic, dynamic>) {
+        if (value['read'] == 'no') {
+          count++;
+        }
       }
-    }
+    });
 
-    return _countUnreadRecursive(node);
+    return count;
   }
 
-  static List<Map<String, dynamic>> searchInDataList(
-      List<Map<String, dynamic>> dataList, String query) {
+  static int getHomeScreenReadCount() {
+    final ampLiveNode = read("notifications~AMP-LIVE");
+    if (ampLiveNode is! Map) return 0;
+
+    int count = 0;
+
+    ampLiveNode.forEach((provider, idsMap) {
+      if (idsMap is Map) {
+        idsMap.forEach((id, data) {
+          if (data is Map && data['read'] == 'no') {
+            count++;
+          }
+        });
+      }
+    });
+
+    return count;
+  }
+
+
+  static int getChannelScreenReadCount() {
+    final notificationsNode = read("notifications");
+    if (notificationsNode is! Map) return 0;
+
+    int count = 0;
+
+    notificationsNode.forEach((subKey, subNode) {
+      if (subKey == "AMP-LIVE") return; // skip home section
+
+      if (subNode is Map) {
+        subNode.forEach((subSubKey, idsMap) {
+          if (idsMap is Map) {
+            idsMap.forEach((id, data) {
+              if (data is Map && data['read'] == 'no') {
+                count++;
+              }
+            });
+          }
+        });
+      }
+    });
+    return count;
+  }
+
+
+
+
+
+
+  static List<Map<dynamic, dynamic>> searchInDataList(List<Map<dynamic, dynamic>> dataList, String query) {
     final lowerQuery = query.toLowerCase().trim();
 
     return dataList.where((entry) {
-      return entry.values.any((value) =>
-          value.toString().toLowerCase().contains(lowerQuery));
+      final data = entry['data'];
+      if (data is Map) {
+        return data.values.any((value) =>
+            value.toString().toLowerCase().contains(lowerQuery));
+      }
+      return false;
     }).toList();
   }
 
 
-
-  /// Helper to recursively count unread entries
-  static int _countUnreadRecursive(dynamic node) {
-    int count = 0;
-
-    if (node is Map<String, dynamic>) {
-      for (final value in node.values) {
-        if (value is Map<String, dynamic>) {
-          if (value.containsKey('read')) {
-            if (value['read'] == 'no') {
-              count++;
-            }
-          } else {
-            // Keep traversing deeper
-            count += _countUnreadRecursive(value);
-          }
-        }
-      }
-    }
-
-    return count;
-  }
 
   static Future<void> markAsRead(String fullPath) async {
     final parts = fullPath.split('~').where((p) => p.isNotEmpty).toList();
@@ -361,7 +428,7 @@ class HiveHelper {
     for (int i = 0; i < parts.length - 1; i++) {
       final part = parts[i];
       if (node is Map && node.containsKey(part)) {
-        node[part] = Map<String, dynamic>.from(node[part]);
+        node[part] = Map<dynamic, dynamic>.from(node[part]);
         node = node[part];
       } else {
         print("returned");
@@ -373,7 +440,7 @@ class HiveHelper {
 
     // Update the 'read' field if the final node exists and is a map
     if (node is Map && node.containsKey(lastKey)) {
-      final item = Map<String, dynamic>.from(node[lastKey]);
+      final item = Map<dynamic, dynamic>.from(node[lastKey]);
       item['read'] = 'yes';
       node[lastKey] = item;
       print("worked");
@@ -381,6 +448,42 @@ class HiveHelper {
       _saveRoot(root);
     }
   }
+
+  static Future<void> markAllAsRead(String partialPath) async {
+    final parts = partialPath.split('~').where((p) => p.isNotEmpty).toList();
+
+    if (parts.isEmpty) return;
+
+    final root = _getRoot();
+    dynamic node = root;
+
+    // Traverse to the target node (not the leaf level)
+    for (int i = 0; i < parts.length; i++) {
+      final part = parts[i];
+      if (node is Map && node.containsKey(part)) {
+        node[part] = Map<dynamic, dynamic>.from(node[part]);
+        node = node[part];
+      } else {
+        print("Path not found");
+        return;
+      }
+    }
+
+    // At this point, 'node' should be the parent map containing items to mark
+    if (node is Map) {
+      node.forEach((key, value) {
+        if (value is Map) {
+          final updatedItem = Map<dynamic, dynamic>.from(value);
+          updatedItem['read'] = 'yes';
+          node[key] = updatedItem;
+        }
+      });
+
+      print("All items marked as read");
+      _saveRoot(root);
+    }
+  }
+
 
 
   static List<String> searchPathsContaining(String query) {
@@ -435,22 +538,28 @@ class HiveHelper {
 
   static List<String> getCategoryPathsOnly() {
     final root = _getRoot();
-    final Set<String> categoryPaths = {}; // Use Set to avoid duplicates
+    final Set<String> categoryPaths = {};
 
-    bool _isNumeric(String s) => int.tryParse(s) != null;
+    bool _isDynamicKey(String key) {
+      // Heuristics: not just letters, may contain '@', digits, ':', or timestamp-like
+      return key.contains('@') || RegExp(r'\d').hasMatch(key) || key.contains(':') || key.contains('T');
+    }
 
     void _traverse(dynamic node, List<String> currentPath) {
       if (node is Map) {
         node.forEach((key, value) {
           final keyStr = key.toString();
-          if (_isNumeric(keyStr)) {
-            // If numeric key, save the parent path only
-            categoryPaths.add(currentPath.join('~'));
-          } else {
-            final newPath = [...currentPath, keyStr];
-            if (value is Map) {
-              _traverse(value, newPath);
+          final newPath = [...currentPath, keyStr];
+
+          if (value is Map) {
+            // Check if child keys are dynamic
+            final dynamicKeys = value.keys.where((k) => _isDynamicKey(k.toString()));
+            if (dynamicKeys.isNotEmpty) {
+              categoryPaths.add(newPath.join('~'));
             }
+
+            // Continue traversing
+            _traverse(value, newPath);
           }
         });
       }
@@ -459,6 +568,8 @@ class HiveHelper {
     _traverse(root, []);
     return categoryPaths.toList();
   }
+
+
 
 
   Future<int> getMatchingIdFromHive({
@@ -571,7 +682,7 @@ class HiveHelper {
     for (int i = 0; i < parts.length - 1; i++) {
       final part = parts[i];
       if (node is Map && node.containsKey(part)) {
-        node[part] = Map<String, dynamic>.from(node[part]);
+        node[part] = Map<dynamic, dynamic>.from(node[part]);
         node = node[part];
       } else {
         return;
@@ -581,7 +692,7 @@ class HiveHelper {
     final lastPart = parts.last;
 
     if (node is Map && node.containsKey(lastPart)) {
-      final item = Map<String, dynamic>.from(node[lastPart]);
+      final item = Map<dynamic, dynamic>.from(node[lastPart]);
       item['ringalarm'] = false;
       node[lastPart] = item;
       _saveRoot(root);

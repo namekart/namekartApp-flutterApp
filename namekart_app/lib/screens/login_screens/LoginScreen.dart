@@ -10,8 +10,10 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:haptic_feedback/haptic_feedback.dart';
 import 'package:icons_plus/icons_plus.dart';
+import 'package:msal_auth/msal_auth.dart';
 import 'package:namekart_app/activity_helpers/GlobalVariables.dart';
-import 'package:namekart_app/activity_helpers/MicrosoftSignInButton.dart';
+import 'package:namekart_app/activity_helpers/MicrosoftLoginButton.dart';
+import 'package:namekart_app/database/HiveHelper.dart';
 import 'package:namekart_app/database/UserSettingsDatabase.dart';
 import 'package:http/http.dart' as http;
 
@@ -23,17 +25,6 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  int activeIndex = 0;
-
-  TextEditingController _textEditingController1 = TextEditingController();
-  TextEditingController _textEditingController2 = TextEditingController();
-
-  late final webSocketService;
-
-  String username = "";
-  String password = "";
-  bool _isLoading = false; // ✅ Declare _isLoading
-
   Future<void> _signInAnonymously() async {
     try {
       UserCredential userCredential =
@@ -48,45 +39,41 @@ class _LoginScreenState extends State<LoginScreen> {
   void initState() {
     // TODO: implement initState
     super.initState();
-
     _signInAnonymously();
-
-    _textEditingController1.addListener(_getUserId);
-
-    _textEditingController2.addListener(_getPassword);
+    if(!GlobalProviders.previouslyOpen) {
+      _attemptAutoLogin(context);
+      GlobalProviders.previouslyOpen=true;
+    }
   }
 
-  void _getUserId() {
-    setState(() {
-      username = _textEditingController1.text.trim(); // Get the user ID
-    });
-  }
+  Future<void> _attemptAutoLogin(BuildContext context) async {
+    final saved = HiveHelper.read("account~user~details");
+    if (saved == null || saved.isEmpty) return;
 
-  void _getPassword() {
-    setState(() {
-      password = _textEditingController2.text.trim();
-    });
-  }
-
-  void _showSnackBar(String message, {bool success = false}) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: success ? Colors.green : Colors.red,
-        duration: Duration(seconds: 1),
-        action: SnackBarAction(
-          label: 'Close',
-          onPressed: () => ScaffoldMessenger.of(context).hideCurrentSnackBar(),
-        ),
+    final msal = await SingleAccountPca.create(
+      clientId: 'c671954e-7f6e-4db7-91f9-08fa9eca986b',
+      androidConfig: AndroidConfig(
+        configFilePath: 'assets/msal_config.json',
+        redirectUri: GlobalProviders().redirectUri,
       ),
     );
+
+    try {
+      final result = await msal.acquireTokenSilent(scopes: ['User.Read']);
+
+      GlobalProviders.userId = result.account.username!;
+      GlobalProviders.loginToken = result.account;
+
+      Navigator.pushReplacementNamed(context, 'home',
+          arguments: {"isAdmin": true});
+    } catch (e) {
+      print("Silent token acquisition failed: $e");
+    }
   }
 
   @override
   void dispose() {
     // TODO: implement dispose
-    _textEditingController2.dispose();
-    _textEditingController1.dispose();
     super.dispose();
   }
 
@@ -99,7 +86,7 @@ class _LoginScreenState extends State<LoginScreen> {
         color: Colors.white,
         child: SingleChildScrollView(
           child:
-              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Column(crossAxisAlignment: CrossAxisAlignment.center, children: [
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -110,242 +97,12 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ],
             ),
-            Padding(
-              padding: const EdgeInsets.only(left: 25.0),
-              child: text(
-                  text: "Welcome Back",
-                  size: 14.sp,
-                  color: Color(0xff3F3F41),
-                  fontWeight: FontWeight.w400),
-            ),
-            Padding(
-              padding: const EdgeInsets.only(
-                  left: 30, right: 30, bottom: 20, top: 20),
-              child: Container(
-                height: 50.sp,
-                alignment: Alignment.centerLeft,
-                decoration: BoxDecoration(
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black12,
-                        blurRadius: 0.5,
-                      ),
-                    ],
-                    borderRadius: BorderRadius.circular(10),
-                    color: Colors.white),
-                child: Padding(
-                  padding: const EdgeInsets.only(left: 5),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Container(
-                        width: 200.sp,
-                        child: TextField(
-                          style: GoogleFonts.poppins(
-                            fontWeight: FontWeight.w300,
-                            color: Colors.black,
-                            fontSize: 10.sp,
-                            decoration: TextDecoration.none,
-                          ),
-                          controller: _textEditingController1,
-                          decoration: InputDecoration(
-                              labelText: 'User ID',
-                              border: InputBorder.none,
-                              labelStyle: GoogleFonts.poppins(
-                                fontWeight: FontWeight.w300,
-                                color: Color(0xff717171),
-                                fontSize: 10.sp,
-                                decoration: TextDecoration.none,
-                              ),
-                              prefixIcon: Icon(
-                                Icons.perm_identity_rounded,
-                                size: 18.sp,
-                                color: Color(0xff717171),
-                              ),
-                              prefixIconColor: Color(0xff717171)),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.only(left: 30, right: 30),
-              child: Container(
-                height: 50.sp,
-                alignment: Alignment.centerLeft,
-                decoration: BoxDecoration(
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black12,
-                        blurRadius: 0.5,
-                      ),
-                    ],
-                    borderRadius: BorderRadius.circular(10),
-                    color: Colors.white),
-                child: Padding(
-                  padding: const EdgeInsets.only(left: 5),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Container(
-                        width: 200.sp,
-                        child: TextField(
-                          controller: _textEditingController2,
-                          style: GoogleFonts.poppins(
-                            fontWeight: FontWeight.w300,
-                            color: Colors.black,
-                            fontSize: 10.sp,
-                            decoration: TextDecoration.none,
-                          ),
-                          obscureText: true,
-                          decoration: InputDecoration(
-                              labelText: 'Password',
-                              border: InputBorder.none,
-                              labelStyle: GoogleFonts.poppins(
-                                fontWeight: FontWeight.w300,
-                                color: Color(0xff717171),
-                                fontSize: 10.sp,
-                                decoration: TextDecoration.none,
-                              ),
-                              prefixIcon: Icon(
-                                Icons.lock_outline_rounded,
-                                size: 18.sp,
-                                color: Color(0xff717171),
-                              ),
-                              prefixIconColor: Color(0xff717171)),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.only(top: 20, right: 30),
-                  child: text(
-                      text: "Forgot Password?",
-                      size: 10,
-                      color: const Color(0xffFF6B6B),
-                      fontWeight: FontWeight.w300),
-                ),
-              ],
-            ),
-            Padding(
-              padding: const EdgeInsets.only(
-                  top: 45, left: 45, right: 45, bottom: 20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Bounceable(
-                    onTap: () async {
-                      if (username.isEmpty || password.isEmpty) {
-                        Haptics.vibrate(HapticsType.error);
-                        _showSnackBar("❌ Please Enter UserId/Password");
-                        return;
-                      }
-
-                      setState(() => _isLoading = true); // Start loading
-
-                      try {
-                        final response = await http.post(
-                          Uri.parse(
-                              "https://nk-phone-app-helper-microservice.politesky-7d4012d0.westus.azurecontainerapps.io/auth/login"),
-                          headers: {"Content-Type": "application/json"},
-                          body: jsonEncode(
-                              {"username": username, "password": password}),
-                        );
-
-                        if (response.statusCode == 200) {
-                          final data = jsonDecode(response.body);
-                          final isAdmin = data["admin"];
-
-                          _showSnackBar("✅ Logged in successfully",
-                              success: true);
-
-                          UserSettingsDatabase userSettingsDatabase =
-                              UserSettingsDatabase.instance;
-
-                          userSettingsDatabase.addOrUpdateUser(
-                              username, password);
-
-                          GlobalProviders.userId = username;
-
-                          await Future.delayed(Duration(seconds: 2));
-
-                          Navigator.pushReplacementNamed(context, 'home',
-                              arguments: {"isAdmin": isAdmin});
-
-                          Haptics.vibrate(HapticsType.success);
-                        } else {
-                          _showSnackBar("❌ Wrong Username/Password");
-                          Haptics.vibrate(HapticsType.error);
-                        }
-                      } catch (e) {
-                        setState(() => _isLoading = false);
-                        _showSnackBar("❌ Server error, please try again later");
-                        Haptics.vibrate(HapticsType.error);
-                        print(e);
-                      }
-                      setState(() => _isLoading = false); // Stop loading
-                    },
-                    child: Container(
-                      padding: EdgeInsets.all(15),
-                      decoration: const BoxDecoration(
-                        color: Color(0xffE63946),
-                        borderRadius: BorderRadius.all(Radius.circular(10)),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black,
-                            blurRadius: 1,
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          _isLoading
-                              ? SizedBox(
-                                  height: 20,
-                                  width: 20,
-                                  child: CircularProgressIndicator(
-                                    color: Colors.white,
-                                    strokeWidth: 5,
-                                  ))
-                              : text(
-                                  text: "Login",
-                                  size: 12,
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w300),
-                        ],
-                      ),
-                    ),
-                  ),
-                  SizedBox(height: 10,),
-                  // MicrosoftSignInButton()
-                ],
-              ),
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                text(
-                    text: "Don’t have an account? ",
-                    size: 10,
-                    color: Colors.black,
-                    fontWeight: FontWeight.w300),
-                text(
-                    text: "Register Now ",
-                    size: 10,
-                    color: Color(0xffFF6B6B),
-                    fontWeight: FontWeight.w300),
-              ],
-            )
+            text(
+                text: "Welcome Back!",
+                size: 17.sp,
+                color: Color(0xff3F3F41),
+                fontWeight: FontWeight.w400),
+            MicrosoftLoginButton(),
           ]),
         ),
       ),

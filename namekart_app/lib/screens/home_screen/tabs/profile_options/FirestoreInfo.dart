@@ -11,13 +11,14 @@ import 'package:shimmer/shimmer.dart';
 import 'package:text_scroll/text_scroll.dart';
 import 'package:top_snackbar_flutter/custom_snack_bar.dart';
 import 'package:top_snackbar_flutter/top_snack_bar.dart';
-import '../../../../../../activity_helpers/FirestoreHelper.dart';
-import '../../../../../../activity_helpers/GlobalFunctions.dart';
-import '../../../../../../activity_helpers/GlobalVariables.dart';
-import '../../../../../../activity_helpers/UIHelpers.dart';
-import '../../../../../../change_notifiers/WebSocketService.dart';
-import '../../../../../../cutsom_widget/AnimatedAvatarIcon.dart';
-import '../../../../../../cutsom_widget/SuperAnimatedWidget.dart';
+
+import '../../../../activity_helpers/FirestoreHelper.dart';
+import '../../../../activity_helpers/GlobalFunctions.dart';
+import '../../../../activity_helpers/GlobalVariables.dart';
+import '../../../../activity_helpers/UIHelpers.dart';
+import '../../../../cutsom_widget/AnimatedAvatarIcon.dart';
+import '../../../../cutsom_widget/SuperAnimatedWidget.dart';
+
 
 class FirestoreInfo extends StatefulWidget {
   @override
@@ -54,7 +55,6 @@ class _FirestoreInfoState extends State<FirestoreInfo> {
   void _showDraggableBottomSheet(BuildContext context, String mainType,
       String subType, List<dynamic> responseList) {
     int pressedIconIndex = 0;
-    bool isFirstLoad = true;
 
     if(responseList.toString()!="[]") {
       showModalBottomSheet(
@@ -122,8 +122,6 @@ class _FirestoreInfoState extends State<FirestoreInfo> {
                                 children: List.generate(responseList.length, (index) {
                                   var item = responseList[index];
 
-
-
                                   return Container(
                                     margin: EdgeInsets.symmetric(horizontal: 1),
                                     child: MaterialButton(
@@ -134,16 +132,11 @@ class _FirestoreInfoState extends State<FirestoreInfo> {
                                                 .toString()
                                                 .trim()}",
                                           );
-                                          setState(() async {
+
+                                          setState(() {
                                             pressedIconIndex = index;
-                                            info = newInfo;
-                                            documentNames = info['documentNames'];
+                                            documentCount=newInfo;
                                             valueListenable.value = null;
-                                            selectedDocs = [];
-                                            selectedCollectionPath =
-                                            "$mainType/$subType/${responseList[index]
-                                                .toString()
-                                                .trim()}";
 
                                             if (getDocumentCount(responseList[index]) == 0) {
                                               showTopSnackBar(
@@ -153,10 +146,6 @@ class _FirestoreInfoState extends State<FirestoreInfo> {
                                                 ),
                                               );
                                             }
-
-                                            documentCount=await getDocumentCount("$mainType/$subType/$selectedCollectionPath");
-
-                                            print(await getDocumentCount("$mainType/$subType/$selectedCollectionPath"));
                                           });
                                         }
                                       },
@@ -552,7 +541,7 @@ class _FirestoreInfoState extends State<FirestoreInfo> {
                                           baseColor: Colors.black87,
                                           highlightColor: Colors.white,
                                           child: Text(
-                                            item[0],
+                                            item.isEmpty?"/":item[0],
                                             style: GoogleFonts.poppins(
                                                 fontSize: 14,
                                                 fontWeight: FontWeight.bold,

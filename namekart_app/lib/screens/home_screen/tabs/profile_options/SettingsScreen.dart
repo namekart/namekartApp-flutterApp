@@ -3,8 +3,12 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:namekart_app/database/HiveHelper.dart';
 import 'package:namekart_app/fcm/FcmHelper.dart';
 import 'package:text_scroll/text_scroll.dart';
+
+import '../../../../activity_helpers/GlobalFunctions.dart';
+import '../../../../activity_helpers/UIHelpers.dart';
 
 
 class SettingsScreen extends StatefulWidget {
@@ -50,12 +54,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
   ];
   final valueListenable = ValueNotifier<String?>(null);
 
+  @override
+  void initState() {
+    // TODO: implement initState
+    super.initState();
+  }
+
+
+
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        iconTheme: const IconThemeData(color: Colors.white, size: 20),
+        elevation: 10,
+        backgroundColor: Color(0xffF7F7F7),
+        iconTheme: const IconThemeData(color: Color(0xff3F3F41), size: 15),
         actions: [
           Container(
             width: 2,
@@ -63,28 +77,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
             color: Colors.black12,
           ),
           IconButton(
-              onPressed: () {},
-              icon: const Icon(Icons.settings)
+            onPressed: () {},
+            icon: Icon(
+              Icons.settings,size: 15.sp,
+            ),
           )
         ],
-        actionsIconTheme: IconThemeData(color: Colors.white, size: 20),
         title: Row(
           children: [
-            Text("Settings",
-                style: GoogleFonts.poppins(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12.sp,
-                    color: Colors.white)),
+            text(
+                text: "Settings",
+                fontWeight: FontWeight.w300,
+                size: 12.sp,
+                color: Color(0xff3F3F41)),
           ],
         ),
         titleSpacing: 0,
-        toolbarHeight: 50,
-        flexibleSpace: Container(
-            decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                    colors: [Color(0xFF03A7FF), Color(0xFFAE002C)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight))),
       ),
       body: SingleChildScrollView(
         child: Column(
@@ -97,7 +105,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     .size
                     .width,
                 decoration: BoxDecoration(
-                  color: Color(0xFFF3F3F3),
+                  color: Colors.white,
                   borderRadius: BorderRadius.all(Radius.circular(20)),
                 ),
                 child: Padding(
@@ -110,17 +118,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text("Device Notification",
-                                style: GoogleFonts.poppins(
-                                    color: Color(0xffB71C1C),
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 12)),
+                            text(text: "Device Notification",
+                            fontWeight: FontWeight.w300,
+                            size: 12.sp,
+                            color: Color(0xffA8A7A7)),
                             SizedBox(height: 15),
-                            Text("Bubbles",
-                                style: GoogleFonts.poppins(
-                                    color: Color(0xff464646),
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 8)),
+                            text(text: "Bubbles",
+                                fontWeight: FontWeight.w300,
+                                size: 10.sp,
+                                color: Color(0xff3F3F41)),
                             SizedBox(height: 10),
                             SingleChildScrollView(
                               scrollDirection: Axis.horizontal,

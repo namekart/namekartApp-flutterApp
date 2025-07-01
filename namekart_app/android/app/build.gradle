@@ -30,9 +30,21 @@ android {
         multiDexEnabled true
     }
 
+    signingConfigs {
+        release {
+            keyAlias 'namekartkey'
+            keyPassword 'namekart'          // Replace with actual password
+            storeFile file('../namekart-release.jks') // Make sure the path is correct
+            storePassword 'namekart'      // Replace with actual password
+        }
+    }
+
     buildTypes {
         release {
-            signingConfig signingConfigs.debug
+            signingConfig signingConfigs.debug // ✅ Correct signing config
+            minifyEnabled true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+
         }
     }
 }

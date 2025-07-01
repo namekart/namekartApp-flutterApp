@@ -203,3 +203,36 @@ Future<bool> syncFirestoreFromDocIdTimestamp(
     return false;
   }
 }
+
+Future<List<Map<String, dynamic>>> getLatestDocuments(String path, {int limit = 10}) async {
+  try {
+    final collectionPath = path.replaceAll("~", "/");
+
+    final querySnapshot = await FirebaseFirestore.instance
+        .collection(collectionPath)
+        .orderBy('datetime_id', descending: true)
+        .limit(limit)
+        .get(); // 🔒 Reads only 'limit' documents
+
+    if (querySnapshot.docs.isEmpty) {
+      print("ℹ️ No documents found in $collectionPath.");
+      return [];
+    }
+
+    List<Map<String, dynamic>> latestDocs = [];
+
+    for (var doc in querySnapshot.docs) {
+      final data = doc.data();
+      data['id'] = doc.id;
+      latestDocs.add(data);
+      HiveHelper.addDataToHive(path,data['id'],data);
+    }
+
+    print("✅ Retrieved ${latestDocs.length} latest documents from $collectionPath.");
+    return latestDocs;
+  } catch (e) {
+    print("❌ Error fetching latest documents from $path: $e");
+    return [];
+  }
+}
+
