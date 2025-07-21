@@ -4,10 +4,10 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:namekart_app/activity_helpers/GlobalVariables.dart';
 import 'package:namekart_app/activity_helpers/UIHelpers.dart';
 
-import 'package:namekart_app/screens/home_screen/tabs/profile_options/FirestoreInfo.dart';
-import 'package:namekart_app/screens/home_screen/tabs/profile_options/NotificationsScreen.dart';
-import 'package:namekart_app/screens/home_screen/tabs/profile_options/SettingsScreen.dart';
-import '../../login_screens/LoginScreen.dart';
+import '../../../login_screens/LoginScreen.dart';
+import 'options/FirestoreInfo.dart';
+import 'options/NotificationsScreen.dart';
+import 'options/SettingsScreen.dart';
 
 class ProfileTab extends StatelessWidget {
   String? userName=GlobalProviders.loginToken.name;
@@ -75,28 +75,9 @@ class ProfileTab extends StatelessWidget {
                           fontWeight: FontWeight.w300,
                           color: Color(0xffA8A7A7),
                         ),
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            PageRouteBuilder(
-                              transitionDuration: Duration(milliseconds: 500),
-                              pageBuilder:
-                                  (context, animation, secondaryAnimation) {
-                                return FirestoreInfo();
-                              },
-                              transitionsBuilder: (context, animation,
-                                  secondaryAnimation, child) {
-                                var tween = Tween(
-                                  begin: Offset(1.0, 0.0),
-                                  end: Offset.zero,
-                                ).chain(CurveTween(curve: Curves.easeInOut));
-                                return SlideTransition(
-                                  position: animation.drive(tween),
-                                  child: child,
-                                );
-                              },
-                            ),
-                          );
+                        onTap: () {Navigator.push(
+                              context,
+    MaterialPageRoute(builder: (context) => FirestoreInfo()));
                         },
                       ),
                     ),
@@ -119,27 +100,8 @@ class ProfileTab extends StatelessWidget {
                         ),
                         onTap: () {
                           Navigator.push(
-                            context,
-                            PageRouteBuilder(
-                              transitionDuration: Duration(milliseconds: 500),
-                              pageBuilder:
-                                  (context, animation, secondaryAnimation) {
-                                return NotificationsScreen();
-                              },
-                              transitionsBuilder: (context, animation,
-                                  secondaryAnimation, child) {
-                                var tween = Tween(
-                                  begin: Offset(1.0, 0.0),
-                                  end: Offset.zero,
-                                ).chain(CurveTween(curve: Curves.easeInOut));
-                                return SlideTransition(
-                                  position: animation.drive(tween),
-                                  child: child,
-                                );
-                              },
-                            ),
-                          );
-                        },
+                              context,
+                              MaterialPageRoute(builder: (context) =>NotificationsScreen()));                        },
                       ),
                     ),
                     Container(
@@ -161,26 +123,8 @@ class ProfileTab extends StatelessWidget {
                         ),
                         onTap: () {
                           Navigator.push(
-                            context,
-                            PageRouteBuilder(
-                              transitionDuration: Duration(milliseconds: 500),
-                              pageBuilder:
-                                  (context, animation, secondaryAnimation) {
-                                return SettingsScreen();
-                              },
-                              transitionsBuilder: (context, animation,
-                                  secondaryAnimation, child) {
-                                var tween = Tween(
-                                  begin: Offset(1.0, 0.0),
-                                  end: Offset.zero,
-                                ).chain(CurveTween(curve: Curves.easeInOut));
-                                return SlideTransition(
-                                  position: animation.drive(tween),
-                                  child: child,
-                                );
-                              },
-                            ),
-                          );
+                              context,
+                              MaterialPageRoute(builder: (context) =>SettingsScreen()));
                         },
                       ),
                     ),
@@ -222,7 +166,6 @@ class ProfileTab extends StatelessWidget {
                         );
                       },
                     ),
-
                   ],
                 ),
               ),

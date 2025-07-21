@@ -1,9 +1,11 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:carousel_slider/carousel_options.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bounceable/flutter_bounceable.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -11,12 +13,13 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:haptic_feedback/haptic_feedback.dart';
 import 'package:icons_plus/icons_plus.dart';
 import 'package:msal_auth/msal_auth.dart';
+import 'package:namekart_app/activity_helpers/DbAccountHelper.dart';
 import 'package:namekart_app/activity_helpers/GlobalVariables.dart';
 import 'package:namekart_app/activity_helpers/MicrosoftLoginButton.dart';
-import 'package:namekart_app/database/HiveHelper.dart';
 import 'package:namekart_app/database/UserSettingsDatabase.dart';
 import 'package:http/http.dart' as http;
 
+import '../../activity_helpers/DbSqlHelper.dart';
 import '../../activity_helpers/UIHelpers.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -26,6 +29,8 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   Future<void> _signInAnonymously() async {
+
+    await DbSqlHelper.initDatabase();
     try {
       UserCredential userCredential =
           await FirebaseAuth.instance.signInAnonymously();
@@ -47,16 +52,26 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _attemptAutoLogin(BuildContext context) async {
-    final saved = HiveHelper.read("account~user~details");
-    if (saved == null || saved.isEmpty) return;
+    final isDataPresent = await DbAccountHelper.isDataPresent("account~user~details");
+    if (!isDataPresent) return;
 
-    final msal = await SingleAccountPca.create(
+    final msal= await SingleAccountPca.create(
       clientId: 'c671954e-7f6e-4db7-91f9-08fa9eca986b',
-      androidConfig: AndroidConfig(
-        configFilePath: 'assets/msal_config.json',
+      androidConfig: Platform.isAndroid
+          ? AndroidConfig(
+        configFilePath: 'assets/msal_config_android.json',
         redirectUri: GlobalProviders().redirectUri,
-      ),
+      )
+          : null,
+      appleConfig: Platform.isIOS
+          ? AppleConfig(
+        authority: 'https://login.microsoftonline.com/eba2c098-631c-4978-8326-5d25c2d09ca5',
+        authorityType: AuthorityType.aad,
+        broker: Broker.msAuthenticator,
+      )
+          : null,
     );
+
 
     try {
       final result = await msal.acquireTokenSilent(scopes: ['User.Read']);

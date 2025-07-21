@@ -4,10 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bounceable/flutter_bounceable.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flashy_tab_bar2/flashy_tab_bar2.dart';
+import 'package:hive_flutter/adapters.dart';
+import 'package:namekart_app/activity_helpers/DbSqlHelper.dart';
 import 'package:namekart_app/activity_helpers/UIHelpers.dart';
-import 'package:namekart_app/screens/home_screen/tabs/ProfileTab.dart';
 import 'package:namekart_app/screens/home_screen/tabs/home_tab.dart';
 import 'package:namekart_app/screens/home_screen/tabs/channels_tab.dart';
+import 'package:namekart_app/screens/home_screen/tabs/profile_tab/ProfileTab.dart';
+import 'package:namekart_app/screens/home_screen/tabs/profile_tab/options_tab/Options.dart';
 import 'package:provider/provider.dart';
 
 import '../../activity_helpers/FirestoreHelper.dart';
@@ -16,8 +19,8 @@ import '../../activity_helpers/GlobalVariables.dart';
 import '../../change_notifiers/AllDatabaseChangeNotifiers.dart';
 import '../../change_notifiers/WebSocketService.dart';
 import '../../cutsom_widget/customSyncWidget.dart';
-import '../../database/HiveHelper.dart';
 import '../info_screens/HelpDesk.dart';
+import 'StarsScreen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -29,17 +32,13 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
 
-  late NotificationPathNotifier notificationPathNotifier;
-  late BuildContext dialogContext;
-
-  late VoidCallback _syncListener;
-
   late NotificationDatabaseChange notificationDatabaseChange;
   int homeReadCount = 0, channelReadCount = 0;
 
   final List<Widget> _tabs = [
     const HomeTab(),
     const ChannelsTab(),
+    Options(),
     ProfileTab(),
   ];
 
@@ -48,23 +47,18 @@ class _HomeScreenState extends State<HomeScreen> {
     // TODO: implement initState
     super.initState();
 
-    connectToWebsocket();
 
-    _syncListener = () => syncAllPaths(context);
-
-    getHomeScreenAndChannelReadCount();
+    if (!GlobalProviders.isHomeScreenLoaded) {
+      connectToWebsocket();
+      getHomeScreenAndChannelReadCount();
+      GlobalProviders.isHomeScreenLoaded = true;
+    }
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       // Clean up old listener if it exists
       notificationDatabaseChange =
           Provider.of<NotificationDatabaseChange>(context, listen: false);
       notificationDatabaseChange.addListener(getHomeScreenAndChannelReadCount);
-    });
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      notificationPathNotifier =
-          Provider.of<NotificationPathNotifier>(context, listen: false);
-      notificationPathNotifier.addListener(_syncListener);
     });
   }
 
@@ -78,6 +72,9 @@ class _HomeScreenState extends State<HomeScreen> {
       Provider.of<DatabaseDataUpdatedNotifier>(context, listen: false),
       Provider.of<BubbleButtonClickUpdateNotifier>(context, listen: false),
       Provider.of<NotificationPathNotifier>(context, listen: false),
+      Provider.of<SnackBarSuccessNotifier>(context, listen: false),
+      Provider.of<SnackBarFailedNotifier>(context, listen: false),
+      Provider.of<ShowDialogNotifier>(context, listen: false),
     );
 
     WebSocketService().sendMessage({
@@ -85,45 +82,30 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  Future<void> syncAllPaths(BuildContext context) async {
-    showSyncDialog(context);
-    try {
-      final readedData = await readAllCloudPath();
-      final outerDecoded = jsonDecode(readedData!);
-      final dataField = outerDecoded['data'];
-      final innerDecoded =
-          dataField is String ? jsonDecode(dataField) : dataField;
-      final responseRaw = innerDecoded['response'];
-      final List<dynamic> paths =
-          responseRaw is String ? jsonDecode(responseRaw) : responseRaw;
+  Future<void> getHomeScreenAndChannelReadCount() async {
+    // Get count for Home Screen (notifications in AMP-LIVE channel)
+    final String homeScreenPath = 'notifications~AMP-LIVE';
+    homeReadCount = await DbSqlHelper.getReadCount(homeScreenPath);
 
-      for (final String path in paths) {
-        try {
-          if (HiveHelper.getLast(path)?['datetime_id'] != null) {
-            String lastDatetime_id = HiveHelper.getLast(path)?["datetime_id"];
-            await syncFirestoreFromDocIdTimestamp(path, lastDatetime_id, false);
-          } else {
-            await getLatestDocuments(path);
-          }
-        } catch (e) {
-          print('Error syncing $path: $e');
-          // Optionally log or retry this path later
-        }
-      } // Correct context — only dismisses the dialog
-    } catch (e, st) {
-      print('Failed to start sync: $e');
-      print(st);
+    // Get total unread count across ALL channels
+    final String allNotificationsPath = 'notifications';
+    final int totalUnreadCount = await DbSqlHelper.getReadCount(allNotificationsPath);
+
+    // Calculate channelReadCount (all unread EXCEPT AMP-LIVE)
+    // This ensures that only notifications from other channels contribute to channelReadCount.
+    channelReadCount = totalUnreadCount - homeReadCount;
+
+    // Ensure channelReadCount doesn't go negative if there's a data discrepancy,
+    // although theoretically, with correct logic, it shouldn't.
+    if (channelReadCount < 0) {
+      channelReadCount = 0;
     }
-    Navigator.of(context, rootNavigator: true).pop();
-    notificationPathNotifier.removeListener(_syncListener);
-  }
 
-  void getHomeScreenAndChannelReadCount() {
-    setState(() {
-      homeReadCount = HiveHelper.getHomeScreenReadCount();
-      print("object $homeReadCount");
-      channelReadCount = HiveHelper.getChannelScreenReadCount();
-    });
+    // Update the UI
+    setState(() {});
+
+    print('Home Screen Unread Count (AMP-LIVE): $homeReadCount');
+    print('Channel Screen Unread Count (Others): $channelReadCount');
   }
 
   @override
@@ -138,12 +120,21 @@ class _HomeScreenState extends State<HomeScreen> {
           width: 120.sp,
         ),
         actions: [
-          Icon(
-            Icons.refresh_rounded,
-            color: Color(0xff717171),
+          Bounceable(
+            onTap: (){
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => StarsScreen()),
+              );
+            },
+            child: Image.asset(
+              "assets/images/home_screen_images/star.png",
+              width: 23,
+              height: 23,
+            ),
           ),
           SizedBox(
-            width: 10,
+            width: 15,
           ),
           Bounceable(
               onTap: () {
@@ -152,12 +143,13 @@ class _HomeScreenState extends State<HomeScreen> {
                   MaterialPageRoute(builder: (context) => HelpDesk()),
                 );
               },
-              child: Icon(
-                Icons.help_center,
-                color: Color(0xff717171),
+              child: Image.asset(
+                "assets/images/home_screen_images/chat.png",
+                width: 23,
+                height: 23,
               )),
           SizedBox(
-            width: 10,
+            width: 15,
           )
         ],
       ),
@@ -193,6 +185,13 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           FlashyTabBarItem(
             icon: const Icon(
+              Icons.dashboard_customize,
+              color: Colors.black,
+            ),
+            title: const Text("Options", style: TextStyle(color: Colors.black)),
+          ),
+          FlashyTabBarItem(
+            icon: const Icon(
               Icons.person_2_outlined,
               color: Colors.black,
             ),
@@ -200,40 +199,6 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-    );
-  }
-
-  void showSyncDialog(BuildContext context) {
-    showDialog(
-      barrierDismissible: false,
-      context: context,
-      builder: (BuildContext ctx) {
-        dialogContext = ctx; // Save context
-        return AlertDialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          contentPadding: EdgeInsets.all(20),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox(
-                  width: 10,
-                  height: 10,
-                  child: CircularProgressIndicator(
-                    color: Colors.white,
-                    strokeWidth: 12,
-                  )),
-              SizedBox(height: 20),
-              text(
-                text: 'Cloud sync is in progress...Do not close the app.',
-                fontWeight: FontWeight.w300,
-                color: Colors.black,
-                size: 8,
-              ),
-            ],
-          ),
-        );
-      },
     );
   }
 }

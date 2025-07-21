@@ -1,15 +1,5 @@
 {
-  "client_id" : "c671954e-7f6e-4db7-91f9-08fa9eca986b",
-  "authorization_user_agent" : "DEFAULT",
-  "redirect_uri" : "msauth://com.example.namekart_app/wOnWDw1F6gWy4TyhdXzYaD4bm4I%3D",
-  "account_mode": "SINGLE",
-  "authorities" : [
-    {
-      "type": "AAD",
-      "audience": {
-        "type": "AzureADMyOrg",
-        "tenant_id": "eba2c098-631c-4978-8326-5d25c2d09ca5"
-      }
-    }
-  ]
+  "client_id": "c671954e-7f6e-4db7-91f9-08fa9eca986b",
+  "authority": "https://login.microsoftonline.com/eba2c098-631c-4978-8326-5d25c2d09ca5",
+  "redirect_uri": "msauth.com.example.namekartApp://auth"
 }

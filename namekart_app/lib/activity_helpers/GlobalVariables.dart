@@ -13,8 +13,12 @@ class GlobalProviders {
   static late CheckConnectivityNotifier checkConnectivityNotifier;
   static late DatabaseDataUpdatedNotifier databaseDataUpdatedNotifier;
 
+  static bool loadedDynamicDialogAgain=false;
+
   static late String userId;
   static late Account loginToken;
+
+  static bool isHomeScreenLoaded=false;
 
   String redirectUri='msauth://com.example.namekart_app/wOnWDw1F6gWy4TyhdXzYaD4bm4I%3D';
 
@@ -31,14 +35,14 @@ class GlobalProviders {
 }
 
 final Map<String, Widget Function(double)> _iconMap = {
+  "remove watch": (size) => Icon(Icons.bookmark_remove, size: size,color: Colors.black54,),
   "watch": (size) => Icon(Icons.bookmark_border, size: size,color: Colors.black54,),
   "stats": (size) => Icon(Icons.query_stats , size: size,color: Colors.black54,),
   "search": (size) => Icon(Icons.search_rounded , size: size,color: Colors.black54,),
   "leads": (size) => Icon(Icons.label_important_outline , size: size,color: Colors.black54,),
   "refresh": (size) => Icon(Icons.update , size: size,color: Colors.black54,),
   "links": (size) => Icon(Icons.link_sharp , size: size,color: Colors.black54,),
-  "bid 100": (size) => Icon(Icons.confirmation_number_outlined , size: size,color: Colors.black54,),
-  "bid 500": (size) => Icon(Icons.confirmation_number_outlined , size: size,color: Colors.black54,),
+  "bid": (size) => Icon(Icons.confirmation_number_outlined , size: size,color: Colors.black54,),
   "customs": (size) => Icon(Icons.currency_exchange_rounded , size: size,color: Colors.black54,),
   "links": (size) => Icon(Icons.link_sharp , size: size,color: Colors.black54,),
   "google": (size) => Brand(Brands.google, size: size),
@@ -76,8 +80,14 @@ final Map<String, Widget Function(double)> _iconMap = {
 
 Widget getIconForButton(String buttonText, double iconSize) {
   String name = buttonText.toLowerCase().trim();
-  final iconBuilder = _iconMap[name];
-  return iconBuilder != null
-      ? iconBuilder(iconSize)
-      : Icon(Icons.account_circle, size: iconSize); // fallback icon with proper size
+
+  for (final entry in _iconMap.entries) {
+    if (name.contains(entry.key)) {
+      return entry.value(iconSize);
+    }
+  }
+
+  // fallback icon
+  return Icon(Icons.account_circle, size: iconSize);
 }
+

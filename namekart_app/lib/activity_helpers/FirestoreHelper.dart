@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+import 'package:namekart_app/activity_helpers/DbSqlHelper.dart';
 
-import '../database/HiveHelper.dart';
 
 Future<void> addDataToFirestore(String collectionPath, String docName, Map<String, dynamic> data) async {
   try {
@@ -122,7 +122,7 @@ Future<void> getFullDatabaseForPath(String path) async {
     final collectionPath = path.replaceAll("~", "/");
 
     // 🧹 Step 1: Clear existing local Hive data for the path
-    await HiveHelper.delete(path);
+    await DbSqlHelper.delete(path);
     print("🗑️ Cleared local Hive data for path: $path");
 
     // 🔄 Step 2: Fetch all documents from Firestore, ordered by ID
@@ -147,7 +147,7 @@ Future<void> getFullDatabaseForPath(String path) async {
       }
 
       try {
-        await HiveHelper.addDataToHive(path, docId, data);
+        await DbSqlHelper.addData(path, docId, data);
         print("✅ Synced ID $docId to Hive from $path.");
       } catch (e) {
         print("⚠️ Failed to add ID $docId to Hive: $e");
@@ -186,9 +186,9 @@ Future<bool> syncFirestoreFromDocIdTimestamp(
 
       try {
         if (update) {
-          await HiveHelper.updateDataOfHive(path, docId, data);
+          await DbSqlHelper.updateData(path, docId, data);
         } else {
-          await HiveHelper.addDataToHive(path, docId, data);
+          await DbSqlHelper.addData(path, docId, data);
         }
         print("✅ Synced doc ID $docId to Hive from $path.");
       } catch (e) {
@@ -225,14 +225,55 @@ Future<List<Map<String, dynamic>>> getLatestDocuments(String path, {int limit = 
       final data = doc.data();
       data['id'] = doc.id;
       latestDocs.add(data);
-      HiveHelper.addDataToHive(path,data['id'],data);
+      DbSqlHelper.addData(path,data['id'],data);
     }
 
-    print("✅ Retrieved ${latestDocs.length} latest documents from $collectionPath.");
+    print("✅ Retrieved ${latestDocs.length} latest documents from $path.");
     return latestDocs;
   } catch (e) {
     print("❌ Error fetching latest documents from $path: $e");
     return [];
   }
 }
+
+Future<List<Map<String, dynamic>>> get10BeforeTimestamp(String path, String beforeDatetimeId) async {
+  try {
+    final collectionPath = path.replaceAll("~", "/");
+
+    // 👇 Query documents before the given datetime_id
+    final querySnapshot = await FirebaseFirestore.instance
+        .collection(collectionPath)
+        .orderBy('datetime_id', descending: true)
+        .where('datetime_id', isLessThan: beforeDatetimeId)
+        .limit(10)
+        .get();
+
+    if (querySnapshot.docs.isEmpty) {
+      print("ℹ️ No older documents found before $beforeDatetimeId in $collectionPath.");
+      return [];
+    }
+
+    List<Map<String, dynamic>> result = [];
+
+    for (var doc in querySnapshot.docs) {
+      final data = doc.data();
+      data['id'] = doc.id;
+
+      try {
+        await DbSqlHelper.addData(path, doc.id, data);
+        result.add(data);
+        print("✅ Synced doc ${doc.id} to Hive.");
+      } catch (e) {
+        print("⚠️ Failed to sync doc ${doc.id} to Hive: $e");
+      }
+    }
+
+    print("✅ get10BeforeTimestamp() complete. Fetched ${result.length} documents.");
+    return result;
+  } catch (e) {
+    print("❌ Error in get10BeforeTimestamp(): $e");
+    return [];
+  }
+}
+
 

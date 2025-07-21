@@ -1,4 +1,7 @@
 import 'package:flutter/cupertino.dart';
+import 'package:namekart_app/activity_helpers/UIHelpers.dart';
+
+import '../main.dart';
 
 class LiveDatabaseChange extends ChangeNotifier {
   late String addedDatabasePath;
@@ -38,6 +41,8 @@ class DatabaseDataUpdatedNotifier extends ChangeNotifier {
   late String currentPath;
   late String updatedPath;
 
+  late String pathOfUpdatedDocument;
+
   // This method will update the stored path and notify listeners
   void setPath(String path) {
     currentPath = path;
@@ -46,6 +51,16 @@ class DatabaseDataUpdatedNotifier extends ChangeNotifier {
   String getUpdatedPath() {
     return updatedPath;
   }
+
+
+  void setPathOfUpdatedDocument(String path){
+    pathOfUpdatedDocument=path;
+  }
+
+  String getPathOfUpdatedDocument(){
+    return pathOfUpdatedDocument;
+  }
+
 
   // This method will notify listeners if the path matches the one being updated
   void notifyDatabaseDataUpdated(String gotUpdatedPath) {
@@ -105,4 +120,29 @@ class CurrentDateChangeNotifier extends ChangeNotifier {
   }
 }
 
+
+class SnackBarSuccessNotifier extends ChangeNotifier {
+  void notifySnackBarSuccessNotifier(String message) {
+    final ctx = navigatorKey.currentContext;
+    if (ctx != null) {
+      showTopSnackbar(message, true);
+
+    }
+  }
+}
+
+class SnackBarFailedNotifier extends ChangeNotifier {
+  void notifySnackBarFailedNotifier(String message) {
+    final ctx = navigatorKey.currentContext;
+    if (ctx != null) {
+      showCustomDialog(ctx,"Failed",message);
+    }
+  }
+}
+
+  class ShowDialogNotifier extends ChangeNotifier {
+  void notifyShowDialogNotifier() {
+    notifyListeners();
+  }
+}
 

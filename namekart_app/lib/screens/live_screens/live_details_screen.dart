@@ -4,11 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bounceable/flutter_bounceable.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:hive_flutter/adapters.dart';
+import 'package:haptic_feedback/haptic_feedback.dart';
+import 'package:namekart_app/activity_helpers/DbAccountHelper.dart';
 import 'package:namekart_app/activity_helpers/FirestoreHelper.dart';
 import 'package:namekart_app/activity_helpers/GlobalFunctions.dart';
 import 'package:namekart_app/cutsom_widget/CalendarSlider.dart';
-import 'package:namekart_app/database/HiveHelper.dart';
 import 'package:namekart_app/fcm/FcmHelper.dart';
 import 'package:provider/provider.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
@@ -16,26 +16,30 @@ import 'package:text_scroll/text_scroll.dart';
 import 'package:top_snackbar_flutter/custom_snack_bar.dart';
 import 'package:top_snackbar_flutter/safe_area_values.dart';
 import 'package:top_snackbar_flutter/top_snack_bar.dart';
-import 'package:visibility_detector/visibility_detector.dart';
+import '../../activity_helpers/DbSqlHelper.dart';
 import '../../change_notifiers/AllDatabaseChangeNotifiers.dart';
 import '../../activity_helpers/GlobalVariables.dart';
 import '../../activity_helpers/UIHelpers.dart';
 import '../../change_notifiers/WebSocketService.dart';
-import '../../cutsom_widget/SlowScrollPhysics.dart';
+import '../../cutsom_widget/_HashtagInputWidgetState.dart';
 import '../../cutsom_widget/customSyncWidget.dart';
 
 class LiveDetailsScreen extends StatefulWidget {
-  String img, mainCollection, subCollection, subSubCollection;
+  String img,
+      mainCollection,
+      subCollection,
+      subSubCollection,
+      scrollToDatetimeId;
   bool showHighlightsButton;
 
-  LiveDetailsScreen({
-    super.key,
-    required this.img,
-    required this.mainCollection,
-    required this.subCollection,
-    required this.subSubCollection,
-    required this.showHighlightsButton,
-  });
+  LiveDetailsScreen(
+      {super.key,
+      required this.img,
+      required this.mainCollection,
+      required this.subCollection,
+      required this.subSubCollection,
+      required this.showHighlightsButton,
+      required this.scrollToDatetimeId});
 
   @override
   _LiveDetailsScreenState createState() => _LiveDetailsScreenState();
@@ -90,7 +94,8 @@ class _LiveDetailsScreenState extends State<LiveDetailsScreen>
   StreamSubscription? _subscriptionForButtons;
 
   ItemScrollController itemScrollController = ItemScrollController();
-
+  final ItemPositionsListener itemPositionsListener =
+      ItemPositionsListener.create();
 
   final TextEditingController _enterAmountController = TextEditingController();
   TextEditingController searchQueryController = TextEditingController();
@@ -109,6 +114,13 @@ class _LiveDetailsScreenState extends State<LiveDetailsScreen>
 
   final Map<String, GlobalKey> dateKeys = {};
 
+  bool isLoadingMore = false;
+  bool hasMoreItems = true;
+
+  bool searched = false;
+
+  WebSocketService websocketService = WebSocketService();
+
   @override
   void initState() {
     super.initState();
@@ -116,41 +128,102 @@ class _LiveDetailsScreenState extends State<LiveDetailsScreen>
     assignThingsForRespectedScreen();
     setAppBarTitle();
 
-    if (HiveHelper.getLast(hiveDatabasePath) != null) {
+    initialSetup();
+
+    Future.delayed(Duration(seconds: 3), () {
+
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        // Clean up old listener if it exists
+        liveDatabaseChange =
+            Provider.of<LiveDatabaseChange>(context, listen: false);
+        liveDatabaseChange.setPath(hiveDatabasePath);
+        liveDatabaseChange.addListener(fetchNewAuction);
+      });
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        databaseDataUpdatedNotifier =
+            Provider.of<DatabaseDataUpdatedNotifier>(context, listen: false);
+        databaseDataUpdatedNotifier.setPath(hiveDatabasePath);
+        databaseDataUpdatedNotifier.addListener(updateChangesAndUI);
+      });
+
+      searchQueryController.addListener(getSearchedText);
+
+      _enterAmountController.addListener(getEnteredCustomAmount);
+
+      for (var auctionItem in auctions) {
+        final date = extractDate(auctionItem['datetime_id']);
+        dateKeys.putIfAbsent(date, () => GlobalKey());
+      }
+
+      itemPositionsListener.itemPositions.addListener(() {
+        final positions = itemPositionsListener.itemPositions.value;
+
+        final maxIndex = positions.isNotEmpty
+            ? positions.map((e) => e.index).reduce((a, b) => a > b ? a : b)
+            : null;
+
+        if (maxIndex != null &&
+            maxIndex >= auctions.length - 1 &&
+            !isLoadingMore &&
+            !searched &&
+            hasMoreItems) {
+          // ✅ add guard
+
+          setState(() {
+            isLoadingMore = true;
+          });
+
+          final latestDatetimeId = auctions.last['datetime_id'];
+
+          addCloud10PreviousItems(latestDatetimeId).then((newItems) {
+            setState(() {
+              isLoadingMore = false;
+              if (newItems.isEmpty) {
+                hasMoreItems = false; // ✅ stop forever
+              }
+            });
+          });
+        }
+
+        if (positions.isNotEmpty) {
+          final visibleIndex =
+              positions.map((e) => e.index).reduce((a, b) => a > b ? a : b);
+          final visibleItem = auctions[visibleIndex];
+          final visibleDatetimeId = visibleItem['datetime_id'];
+
+          if (currentDateNotifier.value != visibleDatetimeId) {
+            currentDateNotifier.value = visibleDatetimeId;
+          }
+        }
+      });
+    });
+  }
+
+  Future<List<Map<String, dynamic>>> addCloud10PreviousItems(
+      String beforeDatetimeId) async {
+    final got10Previous =
+        await get10BeforeTimestamp(hiveDatabasePath, beforeDatetimeId);
+
+    setState(() {
+      auctions.addAll(got10Previous.reversed);
+    });
+
+    return got10Previous; // ✅ let listener know
+  }
+
+  Future<void> initialSetup() async {
+    if (await DbSqlHelper.getLast(hiveDatabasePath) != null) {
       syncToFirestore();
       fetchDataByDate(false);
       FCMHelper().subscribeToTopic("godaddy");
     }
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      // Clean up old listener if it exists
-      liveDatabaseChange =
-          Provider.of<LiveDatabaseChange>(context, listen: false);
-      liveDatabaseChange.setPath(hiveDatabasePath);
-      liveDatabaseChange.addListener(fetchNewAuction);
-    });
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      databaseDataUpdatedNotifier =
-          Provider.of<DatabaseDataUpdatedNotifier>(context, listen: false);
-      databaseDataUpdatedNotifier.setPath(hiveDatabasePath);
-      databaseDataUpdatedNotifier.addListener(updateChangesAndUI);
-    });
-
-    searchQueryController.addListener(getSearchedText);
-
-    _enterAmountController.addListener(getEnteredCustomAmount);
-
-
-    for (var auctionItem in auctions) {
-      final date = extractDate(auctionItem['datetime_id']);
-      dateKeys.putIfAbsent(date, () => GlobalKey());
-    }
-
   }
 
   Future<bool> syncToFirestore() async {
-    String datetime_id = HiveHelper.getLast(hiveDatabasePath)?['datetime_id'];
+    var lastItem = await DbSqlHelper.getLast(hiveDatabasePath);
+    String datetime_id = lastItem?['datetime_id'];
 
     await syncFirestoreFromDocIdTimestamp(hiveDatabasePath, datetime_id, false);
 
@@ -166,32 +239,39 @@ class _LiveDetailsScreenState extends State<LiveDetailsScreen>
     previousDay = getPreviousDay(todayDate.formattedDate).formattedDate;
     nextDay = "";
 
-    hiveDatabasePath = "${widget.mainCollection}~${widget.subCollection}~${widget.subSubCollection}";
+    hiveDatabasePath =
+        "${widget.mainCollection}~${widget.subCollection}~${widget.subSubCollection}";
   }
 
-  fetchDataByDate(bool rebuild) {
-    var rawData = HiveHelper.getFullData(hiveDatabasePath);
+  fetchDataByDate(bool rebuild) async {
+    var rawData = await DbSqlHelper.getFullData(hiveDatabasePath);
     auctions = rawData;
     setState(() {
       Future.delayed(const Duration(seconds: 1), () {
         setState(() {
           isLoadingData = false;
+          Haptics.vibrate(HapticsType.error);
+
+          if (widget.scrollToDatetimeId != "") {
+            scrollToDate(widget.scrollToDatetimeId);
+          }
         });
       });
     }); // Trigger UI rebuild after parsing
 
-    if(rebuild){
+    if (rebuild) {
       showSyncDialog(context);
 
       Future.delayed(const Duration(seconds: 30), () {
-          Navigator.of(dialogContext, rootNavigator: true).pop();
+        Navigator.of(dialogContext, rootNavigator: true).pop();
       });
     }
   }
 
   void fetchNewAuction() async {
-    final item = HiveHelper.getLast(hiveDatabasePath);
-    if (mounted && calenderSelectedDate.formattedDate.contains(todayDate.formattedDate)) {
+    final item = await DbSqlHelper.getLast(hiveDatabasePath);
+    if (mounted &&
+        calenderSelectedDate.formattedDate.contains(todayDate.formattedDate)) {
       setState(() {
         auctions.insert(0, item!);
         if (seenCounter < 0) {
@@ -200,7 +280,6 @@ class _LiveDetailsScreenState extends State<LiveDetailsScreen>
         seenCounter += 1;
       });
     }
-    haptic();
   }
 
   void showDialogPopup() {
@@ -217,26 +296,31 @@ class _LiveDetailsScreenState extends State<LiveDetailsScreen>
     );
   }
 
-  void updateChangesAndUI() {
-    String path = databaseDataUpdatedNotifier.getUpdatedPath();
+  Future<void> updateChangesAndUI() async {
+    String path = databaseDataUpdatedNotifier.getPathOfUpdatedDocument();
     String id = path.split("~").last;
-    var updatedData = HiveHelper.read(path);
+    var updatedData = await DbSqlHelper.getById(path, id);
     if (updatedData == null) return;
-
     setState(() {
-      int index = auctions.indexWhere((element) => element['id'] == id);
+      int index =
+          auctions.indexWhere((element) => element['datetime_id'] == id);
       if (index != -1) {
         auctions[index] = updatedData;
       }
     });
+
+    resetButtonLoading();
   }
 
   void setAppBarTitle() {
-    appBarTitle = "${widget.subCollection}/${widget.subSubCollection.capitalize()}";
+    appBarTitle =
+        "${widget.subCollection}/${widget.subSubCollection.capitalize()}";
   }
 
   void getSearchedText() {
-    searchText = searchQueryController.text;
+    setState(() {
+      searchText = searchQueryController.text;
+    });
   }
 
   void resetButtonLoading() {
@@ -252,29 +336,36 @@ class _LiveDetailsScreenState extends State<LiveDetailsScreen>
   }
 
   void scrollToDate(String date) {
-    final index = auctions.lastIndexWhere((item) => extractDate(item['datetime_id']) == date);
+    print("Looking for date: $date");
+    for (var item in auctions) {
+      final itemDate = item['datetime_id'];
+      print("Comparing item date: $itemDate");
+    }
+
+    final index = auctions.lastIndexWhere(
+        (item) => (item['datetime_id'])?.toString()?.trim() == date.trim());
+
+    print("Found index: $index");
+
     if (index != -1) {
-      itemScrollController.scrollTo(
-        index: index,
-        duration: Duration(milliseconds: 500),
-        alignment: 0.4
-      );
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        itemScrollController.scrollTo(
+          index: index,
+          duration: Duration(milliseconds: 500),
+          alignment: 0.4,
+        );
+      });
     } else {
       showTopSnackBar(
         Overlay.of(context),
         displayDuration: Duration(milliseconds: 100),
         animationDuration: Duration(milliseconds: 500),
         CustomSnackBar.error(
-          message:
-          "No items found for $date",
+          message: "No items found for $date",
         ),
       );
     }
   }
-
-
-
-
 
   void getEnteredCustomAmount() {
     setState(() {
@@ -284,13 +375,31 @@ class _LiveDetailsScreenState extends State<LiveDetailsScreen>
 
   @override
   Future<void> dispose() async {
-    await HiveHelper.markAllAsRead(hiveDatabasePath);
+    await DbSqlHelper.markAllAsRead(hiveDatabasePath);
     _enterAmountController.removeListener(getEnteredCustomAmount);
     _enterAmountController.dispose();
     _subscriptionForButtons?.cancel();
     liveDatabaseChange.removeListener(fetchNewAuction);
     databaseDataUpdatedNotifier.removeListener(updateChangesAndUI);
     super.dispose();
+  }
+
+  void scrollToAuctionByDatetimeId(String datetimeId) {
+    final index = auctions.indexWhere((auction) {
+      final id = auction["datetime_id"]?.toString();
+      return id == datetimeId;
+    });
+
+    if (index != -1) {
+      itemScrollController.scrollTo(
+        index: index,
+        duration: Duration(milliseconds: 500),
+        curve: Curves.easeInOut,
+      );
+      print("✅ Scrolled to index $index for datetime_id: $datetimeId");
+    } else {
+      print("❌ datetime_id '$datetimeId' not found in auctions list");
+    }
   }
 
   @override
@@ -301,9 +410,12 @@ class _LiveDetailsScreenState extends State<LiveDetailsScreen>
       appBar: AppBar(
         elevation: 10,
         backgroundColor: Color(0xffF7F7F7),
-        iconTheme: const IconThemeData(color: Color(0xff3F3F41), size: 15),
+        surfaceTintColor: Color(0xffF7F7F7),
+        iconTheme: const IconThemeData(color: Colors.black, size: 15),
         actions: [
-          SizedBox(width: 10,),
+          SizedBox(
+            width: 10,
+          ),
           Bounceable(
             onTap: () {
               setState(() {
@@ -326,22 +438,23 @@ class _LiveDetailsScreenState extends State<LiveDetailsScreen>
                         padding: EdgeInsets.only(
                           bottom: MediaQuery.of(context).viewInsets.bottom,
                         ),
-                        child:SingleChildScrollView(
+                        child: SingleChildScrollView(
                           child: Column(
                             children: [
                               Padding(
-                                padding: const EdgeInsets.only(
-                                    left: 20, right: 20),
+                                padding:
+                                    const EdgeInsets.only(left: 20, right: 20),
                                 child: GestureDetector(
                                   onTap: () async {
+                                    showSyncDialog(context);
                                     haptic();
-                                    await getFullDatabaseForPath(hiveDatabasePath);
+                                    await getFullDatabaseForPath(
+                                        hiveDatabasePath);
                                     Navigator.pop(context);
-                          
+
                                     setState(() {
                                       fetchDataByDate(true);
                                     });
-                          
                                   },
                                   child: Container(
                                     width: MediaQuery.sizeOf(context).width,
@@ -349,16 +462,24 @@ class _LiveDetailsScreenState extends State<LiveDetailsScreen>
                                     decoration: const BoxDecoration(
                                       color: Colors.transparent,
                                       borderRadius:
-                                      BorderRadius.all(Radius.circular(20)),
+                                          BorderRadius.all(Radius.circular(20)),
                                     ),
                                     child: Padding(
                                       padding: const EdgeInsets.all(18),
                                       child: Row(
-                                        mainAxisAlignment: MainAxisAlignment.center,
-                                        crossAxisAlignment: CrossAxisAlignment.center,
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.center,
                                         children: [
-                                          Icon(Icons.sync_rounded, color: Colors.white,size: 15,),
-                                          SizedBox(width: 10,),
+                                          Icon(
+                                            Icons.sync_rounded,
+                                            color: Colors.white,
+                                            size: 17,
+                                          ),
+                                          SizedBox(
+                                            width: 10,
+                                          ),
                                           Text(
                                             "Sync With Cloud",
                                             style: GoogleFonts.poppins(
@@ -372,13 +493,13 @@ class _LiveDetailsScreenState extends State<LiveDetailsScreen>
                                   ),
                                 ),
                               ),
-                          
                               Transform.scale(
                                 scale: 0.9,
                                 child: Padding(
                                   padding: const EdgeInsets.all(8.0),
                                   child: Container(
-                                    width: MediaQuery.of(context).size.width - 20,
+                                    width:
+                                        MediaQuery.of(context).size.width - 20,
                                     padding: const EdgeInsets.all(15),
                                     decoration: const BoxDecoration(
                                       color: Color(0xfff2f2f2),
@@ -450,28 +571,35 @@ class _LiveDetailsScreenState extends State<LiveDetailsScreen>
                                 child: GestureDetector(
                                   onTap: () async {
                                     haptic();
-                          
+                                    searched = true;
+
                                     if (searchText.isNotEmpty) {
-                                      var filtered = HiveHelper.searchInDataList(auctions, searchText);
-                          
+                                      var filtered =
+                                          await DbSqlHelper.searchInDataList(
+                                              auctions, searchText);
+
                                       setState(() {
                                         auctions = filtered;
                                       });
-                          
-                                      AnimationController? topSnackBarController;
-                          
-                          
+
+                                      AnimationController?
+                                          topSnackBarController;
+
                                       showTopSnackBar(
                                         Overlay.of(context),
                                         Container(
                                           decoration: BoxDecoration(
                                             color: Color(0xFFB71C1C),
-                                            borderRadius: BorderRadius.circular(20),
+                                            borderRadius:
+                                                BorderRadius.circular(20),
                                           ),
                                           child: Padding(
-                                            padding: const EdgeInsets.only(left: 10),
+                                            padding:
+                                                const EdgeInsets.only(left: 10),
                                             child: Row(
-                                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment
+                                                      .spaceBetween,
                                               children: [
                                                 Text(
                                                   "Search Filter: $searchText",
@@ -479,15 +607,27 @@ class _LiveDetailsScreenState extends State<LiveDetailsScreen>
                                                     fontWeight: FontWeight.bold,
                                                     color: Colors.white,
                                                     fontSize: 8.sp,
-                                                    decoration: TextDecoration.none,
+                                                    decoration:
+                                                        TextDecoration.none,
                                                   ),
                                                 ),
                                                 IconButton(
                                                   onPressed: () async {
-                                                    topSnackBarController?.reverse(); // manually close
-                                                    await fetchDataByDate(false); // restore full list
+                                                    topSnackBarController
+                                                        ?.reverse(); // manually close
+                                                    await fetchDataByDate(
+                                                        false); // restore full list
+
+                                                    setState(() {
+                                                      searched = false;
+                                                      searchText = "";
+                                                      searchQueryController
+                                                          .clear();
+                                                    });
                                                   },
-                                                  icon: Icon(Icons.close_rounded, color: Colors.white),
+                                                  icon: Icon(
+                                                      Icons.close_rounded,
+                                                      color: Colors.white),
                                                 ),
                                               ],
                                             ),
@@ -495,13 +635,16 @@ class _LiveDetailsScreenState extends State<LiveDetailsScreen>
                                         ),
                                         persistent: true,
                                         dismissType: DismissType.none,
-                                        onAnimationControllerInit: (controller) {
+                                        onAnimationControllerInit:
+                                            (controller) {
                                           topSnackBarController = controller;
                                         },
                                       );
                                     }
 
-                                    scrollToDate(extractDate(calenderSelectedDate.formattedDate.toString()));
+                                    scrollToDate(extractDate(
+                                        calenderSelectedDate.formattedDate
+                                            .toString()));
 
                                     Navigator.pop(context);
                                   },
@@ -511,7 +654,7 @@ class _LiveDetailsScreenState extends State<LiveDetailsScreen>
                                     decoration: const BoxDecoration(
                                       color: Colors.black,
                                       borderRadius:
-                                      BorderRadius.all(Radius.circular(20)),
+                                          BorderRadius.all(Radius.circular(20)),
                                     ),
                                     child: Padding(
                                       padding: const EdgeInsets.all(18.0),
@@ -526,7 +669,6 @@ class _LiveDetailsScreenState extends State<LiveDetailsScreen>
                                   ),
                                 ),
                               )
-                          
                             ],
                           ),
                         ),
@@ -543,7 +685,7 @@ class _LiveDetailsScreenState extends State<LiveDetailsScreen>
                 return Container(
                   padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: Colors.black87,
+                    color: Colors.black,
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: text(
@@ -551,12 +693,14 @@ class _LiveDetailsScreenState extends State<LiveDetailsScreen>
                       // Format it as "June 27, 2025" or "3:40 PM"
                       color: Colors.white,
                       size: 8,
-                      fontWeight: FontWeight.w300),
+                      fontWeight: FontWeight.bold),
                 );
               },
             ),
           ),
-          SizedBox(width: 10,),
+          SizedBox(
+            width: 10,
+          ),
           Container(
             width: 2,
             height: 25.sp,
@@ -566,8 +710,8 @@ class _LiveDetailsScreenState extends State<LiveDetailsScreen>
             onPressed: () {},
             icon: Image.asset(
               widget.img,
-              width: 15.sp,
-              height: 15.sp,
+              width: 17.sp,
+              height: 17.sp,
             ),
           )
         ],
@@ -576,9 +720,9 @@ class _LiveDetailsScreenState extends State<LiveDetailsScreen>
             pauseBetween: Duration(seconds: 3),
             appBarTitle.capitalize(),
             style: GoogleFonts.poppins(
-            fontWeight: FontWeight.w300,
-            fontSize: 12.sp,
-            color: Color(0xff3F3F41))),
+                fontWeight: FontWeight.w500,
+                fontSize: 12.sp,
+                color: Colors.black54)),
         titleSpacing: 0,
       ),
       body: AlertWidget(
@@ -625,10 +769,10 @@ class _LiveDetailsScreenState extends State<LiveDetailsScreen>
                         children: [
                           text(
                             text: "Cloud Sync in Progress...",
-                              fontWeight: FontWeight.w300,
-                              color: Colors.white,
-                              size: 8,
-                            ),
+                            fontWeight: FontWeight.w300,
+                            color: Colors.white,
+                            size: 8,
+                          ),
                           const SizedBox(
                               width: 20,
                               height: 20,
@@ -660,9 +804,11 @@ class _LiveDetailsScreenState extends State<LiveDetailsScreen>
           children: [
             if (isLoadingData)
               const Center(
-                child:  Column(
+                child: Column(
                   children: [
-                    SizedBox(height: 20,),
+                    SizedBox(
+                      height: 20,
+                    ),
                     SizedBox(
                         width: 10,
                         height: 10,
@@ -746,12 +892,31 @@ class _LiveDetailsScreenState extends State<LiveDetailsScreen>
                   // Optional Highlights Button
                 ],
               ),
+            if (isLoadingMore)
+              const Center(
+                child: Column(
+                  children: [
+                    SizedBox(
+                      height: 20,
+                    ),
+                    SizedBox(
+                        width: 10,
+                        height: 10,
+                        child: CircularProgressIndicator(
+                          color: Colors.black,
+                          strokeWidth: 12,
+                        )),
+                  ],
+                ),
+              ),
             if (auctions.isNotEmpty && !isLoadingData)
               Expanded(
                 child: Stack(
                   children: [
                     ScrollablePositionedList.builder(
                       itemScrollController: itemScrollController,
+                      itemPositionsListener:
+                          !searched ? itemPositionsListener : null,
                       physics: AlwaysScrollableScrollPhysics(),
                       reverse: true,
                       padding: EdgeInsets.all(12.0),
@@ -780,22 +945,15 @@ class _LiveDetailsScreenState extends State<LiveDetailsScreen>
                         if (uiButtons is List && uiButtons.isNotEmpty) {
                           buttons = uiButtons;
                         }
-                        var itemId, path;
-
-                        WidgetsBinding.instance.addPostFrameCallback((_) {
-                          if (currentDateNotifier.value !=
-                              auctionItem['datetime_id']) {
-                            currentDateNotifier.value =
-                                auctionItem['datetime_id'];
-                          }
-                        });
-
 
                         final date = extractDate(auctionItem['datetime_id']);
-                        final nextDate = index < auctions.length - 1 ? extractDate(auctions[index + 1]['datetime_id']) : null;
-
+                        final nextDate = index < auctions.length - 1
+                            ? extractDate(auctions[index + 1]['datetime_id'])
+                            : null;
 
                         final showHeader = date != nextDate;
+
+                        print(auctionItem['notes']);
 
                         return Column(
                           children: [
@@ -807,16 +965,19 @@ class _LiveDetailsScreenState extends State<LiveDetailsScreen>
                               children: [
                                 if (showHeader)
                                   Row(
-                                    crossAxisAlignment: CrossAxisAlignment.center,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.center,
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
                                       Container(
-                                        margin: EdgeInsets.symmetric(vertical: 8),
-                                        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                        margin:
+                                            EdgeInsets.symmetric(vertical: 8),
+                                        padding: EdgeInsets.symmetric(
+                                            horizontal: 12, vertical: 6),
                                         child: text(
                                           text: date,
-                                          color: Color(0xff717171),
-                                          size: 8,
+                                          color: Colors.black54,
+                                          size: 9,
                                           fontWeight: FontWeight.w300,
                                         ),
                                       ),
@@ -825,13 +986,10 @@ class _LiveDetailsScreenState extends State<LiveDetailsScreen>
                                 if (ringStatus)
                                   GestureDetector(
                                     onTap: () async {
-                                      WebSocketService websocketService =
-                                          new WebSocketService();
-
                                       Map<String, String> a = {
                                         "update-data-of-path":
                                             "update-data-of-path",
-                                        "calledDocumentPath": path,
+                                        "calledDocumentPath": hiveDatabasePath,
                                         "calledDocumentPathFields":
                                             "device_notification[3].ringAlarm",
                                         "type": "ringAlarmFalse"
@@ -896,6 +1054,8 @@ class _LiveDetailsScreenState extends State<LiveDetailsScreen>
                                             width: 0),
                                     borderRadius: BorderRadius.circular(20),
                                   ),
+                                  margin: const EdgeInsets.only(top: 10),
+                                  // Example: adds 8px margin around the card
                                   child: Padding(
                                     padding: EdgeInsets.all(15),
                                     child: Column(
@@ -908,9 +1068,9 @@ class _LiveDetailsScreenState extends State<LiveDetailsScreen>
                                           children: [
                                             text(
                                               text: data['h1'] ?? 'No Title',
-                                              size: 10.sp,
-                                              fontWeight: FontWeight.w400,
-                                              color: Color(0xff3F3F41),
+                                              size: 12.sp,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.black54,
                                             ),
                                             Row(
                                               children: [
@@ -965,7 +1125,7 @@ class _LiveDetailsScreenState extends State<LiveDetailsScreen>
                                                                             AppBar(
                                                                               title: Text(
                                                                                 "Enter First Row Value To Sort",
-                                                                                style: GoogleFonts.poppins(fontSize: 8, color: Colors.white, fontWeight: FontWeight.bold),
+                                                                                style: GoogleFonts.poppins(fontSize: 9, color: Colors.white, fontWeight: FontWeight.bold),
                                                                               ),
                                                                               backgroundColor: Color(0xffB71C1C),
                                                                               iconTheme: IconThemeData(size: 20, color: Colors.white),
@@ -1105,12 +1265,12 @@ class _LiveDetailsScreenState extends State<LiveDetailsScreen>
                                                                           10)),
                                                               style: GoogleFonts.poppins(
                                                                   fontSize:
-                                                                      7.sp,
+                                                                      8.sp,
                                                                   color: Color(
                                                                       0xff717171),
                                                                   fontWeight:
                                                                       FontWeight
-                                                                          .w400),
+                                                                          .bold),
                                                             ),
                                                           ),
                                                         ),
@@ -1160,20 +1320,22 @@ class _LiveDetailsScreenState extends State<LiveDetailsScreen>
                                                                   .circular(8),
                                                           boxShadow: [
                                                             BoxShadow(
-                                                              color: Colors.grey
-                                                                  .shade300,
-                                                              blurRadius: 0.5,
-                                                            ),
+                                                                color: Colors
+                                                                    .black12,
+                                                                blurRadius: 3,
+                                                                blurStyle:
+                                                                    BlurStyle
+                                                                        .outer),
                                                           ],
                                                         ),
                                                         child: text(
                                                             text: item.trim(),
-                                                            size: 7.sp,
+                                                            size: 8.sp,
                                                             color: Color(
                                                                 0xff717171),
                                                             fontWeight:
                                                                 FontWeight
-                                                                    .w400),
+                                                                    .bold),
                                                       ),
                                                     )
                                                     .toList(),
@@ -1199,13 +1361,20 @@ class _LiveDetailsScreenState extends State<LiveDetailsScreen>
                                                       as String;
 
                                               return SizedBox(
-                                                width: 70,
+                                                width: 73,
                                                 child: GestureDetector(
                                                   onTap: () async {
                                                     setState(() {
                                                       buttonloading =
                                                           "${auctionItem['id']} + ${buttonData.keys.toList()[0]}";
                                                     });
+
+                                                    if (GlobalProviders
+                                                        .loadedDynamicDialogAgain) {
+                                                      GlobalProviders
+                                                              .loadedDynamicDialogAgain =
+                                                          false;
+                                                    }
 
                                                     await dynamicDialog(
                                                         context,
@@ -1240,11 +1409,12 @@ class _LiveDetailsScreenState extends State<LiveDetailsScreen>
                                                             "Fetching dialog, please wait..",
                                                       ),
                                                     );
-
+                                                    var lastItem =
+                                                        await DbSqlHelper.getLast(
+                                                            hiveDatabasePath);
                                                     await syncFirestoreFromDocIdTimestamp(
                                                         hiveDatabasePath,
-                                                        HiveHelper.getLast(
-                                                                hiveDatabasePath)?[
+                                                        lastItem?[
                                                             'datetime_id'],
                                                         false);
 
@@ -1252,6 +1422,12 @@ class _LiveDetailsScreenState extends State<LiveDetailsScreen>
                                                       fetchDataByDate(false);
                                                     });
                                                     haptic();
+
+                                                    Future.delayed(
+                                                        Duration(seconds: 5),
+                                                        () {
+                                                      resetButtonLoading();
+                                                    });
                                                   },
                                                   child: Padding(
                                                     padding:
@@ -1278,20 +1454,29 @@ class _LiveDetailsScreenState extends State<LiveDetailsScreen>
                                                                     BlendMode
                                                                         .srcIn),
                                                                 child: getIconForButton(
-                                                                    buttonText,
+                                                                    actionDoneList.toString().contains("Watch") &&
+                                                                            buttonText.contains("Watch")
+                                                                        ? "remove watch"
+                                                                        : buttonText,
                                                                     18),
                                                               ),
                                                               SizedBox(
                                                                   height: 10),
                                                               text(
-                                                                text:
-                                                                    buttonText,
+                                                                text: actionDoneList
+                                                                            .toString()
+                                                                            .contains(
+                                                                                "Watch") &&
+                                                                        buttonText
+                                                                            .contains("Watch")
+                                                                    ? "Remove watch"
+                                                                    : buttonText,
                                                                 color: Color(
                                                                     0xff717171),
                                                                 fontWeight:
                                                                     FontWeight
-                                                                        .w300,
-                                                                size: 8.sp,
+                                                                        .bold,
+                                                                size: 7.sp,
                                                               ),
                                                             ],
                                                           ),
@@ -1302,7 +1487,6 @@ class _LiveDetailsScreenState extends State<LiveDetailsScreen>
                                               );
                                             }).toList(),
                                           ),
-                                        SizedBox(height: 10),
                                         // Compact datetime
                                         Row(
                                           mainAxisAlignment:
@@ -1312,56 +1496,216 @@ class _LiveDetailsScreenState extends State<LiveDetailsScreen>
                                               text: formatToIST(
                                                   auctionItem['datetime_id']),
                                               size: 8,
-                                              color: Color(0xff717171),
-                                              fontWeight: FontWeight.w300,
+                                              color: Colors.black54,
+                                              fontWeight: FontWeight.bold,
                                             ),
+                                            FutureBuilder(
+                                                future:
+                                                    DbAccountHelper.isStarred(
+                                                        "account~user~details",
+                                                        GlobalProviders.userId,
+                                                        hiveDatabasePath,
+                                                        auctionItem[
+                                                            'datetime_id']),
+                                                builder: (context, snapshot) {
+                                                  if (snapshot.hasError) {
+                                                    return Text(
+                                                        'Error: ${snapshot.error}');
+                                                  } else {
+                                                    bool isStarred =
+                                                        snapshot.data ?? false;
+
+                                                    return buildStarToggleButton(
+                                                        isStarred: isStarred,
+                                                        onStarredClicked:
+                                                            () async {
+                                                          await DbAccountHelper.addStar(
+                                                              "account~user~details",
+                                                              GlobalProviders
+                                                                  .userId,
+                                                              hiveDatabasePath,
+                                                              auctionItem[
+                                                                  'datetime_id']);
+
+                                                          final getStars =
+                                                              await DbAccountHelper.getStar(
+                                                                  "account~user~details",
+                                                                  GlobalProviders
+                                                                      .userId);
+                                                          Map<String, dynamic>
+                                                              a = {
+                                                            "query":
+                                                                "update-star",
+                                                            "path":
+                                                                "account~${GlobalProviders.userId}~stars",
+                                                            "stars_info":
+                                                                getStars
+                                                          };
+
+                                                          websocketService
+                                                              .sendMessage(a);
+
+                                                          setState(() {
+                                                            isStarred = true;
+                                                          });
+                                                        },
+                                                        onNotStarredClicked:
+                                                            () async {
+                                                          await DbAccountHelper.deleteStar(
+                                                              "account~user~details",
+                                                              GlobalProviders
+                                                                  .userId,
+                                                              hiveDatabasePath,
+                                                              auctionItem[
+                                                                  'datetime_id']);
+
+                                                          final getStars =
+                                                              await DbAccountHelper.getStar(
+                                                                  "account~user~details",
+                                                                  GlobalProviders
+                                                                      .userId);
+                                                          Map<String, dynamic>
+                                                              a = {
+                                                            "query":
+                                                                "update-star",
+                                                            "path":
+                                                                "account~${GlobalProviders.userId}~stars",
+                                                            "stars_info":
+                                                                getStars
+                                                          };
+
+                                                          websocketService
+                                                              .sendMessage(a);
+
+                                                          setState(() {
+                                                            isStarred = false;
+                                                          });
+                                                        });
+                                                  }
+                                                }),
                                           ],
                                         ),
 
-                                        if (actionDoneList != null)
-                                          Padding(
-                                            padding:
-                                                const EdgeInsets.only(top: 8.0),
-                                            child: Wrap(
-                                                alignment: WrapAlignment.start,
-                                                spacing: 5,
-                                                runSpacing: 5,
-                                                children: (actionDoneList
-                                                        as List<dynamic>)
-                                                    .map<Widget>((actionDone) {
-                                                  return Container(
-                                                    width: 70.sp,
-                                                    decoration: BoxDecoration(
-                                                      color: Colors.white,
-                                                      boxShadow: [
-                                                        BoxShadow(
-                                                          color: Colors
-                                                              .grey.shade300,
-                                                          blurRadius: 0.5,
-                                                        )
-                                                      ],
-                                                      borderRadius:
-                                                          BorderRadius.only(
-                                                              topLeft: Radius
-                                                                  .circular(10),
-                                                              bottomRight:
-                                                                  Radius
-                                                                      .circular(
-                                                                          10)),
-                                                    ),
-                                                    padding: EdgeInsets.all(10),
-                                                    alignment: Alignment.center,
-                                                    child: text(
-                                                        text: actionDone
-                                                            .toString(),
-                                                        size: 7.sp,
-                                                        color:
-                                                            Color(0xff717171),
-                                                        fontWeight:
-                                                            FontWeight.w400),
-                                                  );
-                                                }).toList()),
-                                          ),
+                                        FutureBuilder(
+                                          future: Future.delayed(
+                                              Duration(seconds: 5), () => true),
+                                          builder: (context, snapshot) {
+                                            if (!snapshot.hasData) {
+                                              return Padding(
+                                                padding: const EdgeInsets.only(
+                                                    left: 8.0),
+                                                child: text(
+                                                    text: 'Hashtags loading...',
+                                                    size: 8,
+                                                    color: Colors.black54,
+                                                    fontWeight:
+                                                        FontWeight.bold),
+                                              );
+                                            }
+                                            return createHashtagAndNotesInputWidget(
+                                              initialHashtags: (auctionItem[
+                                                              'hashtags']
+                                                          as List<dynamic>?)
+                                                      ?.map((e) => e.toString())
+                                                      .toList() ??
+                                                  [],
+                                              initialNotes:
+                                                  (auctionItem['notes']
+                                                              as List?)
+                                                          ?.map((e) =>
+                                                              (e as Map?)?.map(
+                                                                (k, v) => MapEntry(
+                                                                    k.toString(),
+                                                                    v.toString()),
+                                                              ) ??
+                                                              {})
+                                                          .toList() ??
+                                                      [],
+                                              // Pass the item's notes
+                                              notesAuthorName:
+                                                  GlobalProviders.userId,
+                                              onHashtagsChanged: (newHashtags) {
+                                                setState(() {
+                                                  Map<String, dynamic> a = {
+                                                    "query": "update-hashtags",
+                                                    "calledDocumentPath":
+                                                        "$hiveDatabasePath~${auctionItem['datetime_id']}",
+                                                    "update_hashtags":
+                                                        newHashtags
+                                                  };
+
+                                                  websocketService
+                                                      .sendMessage(a);
+
+                                                  print(newHashtags);
+                                                });
+                                              },
+                                              onNotesChanged: (newNotes) {
+                                                // Handle notes changes
+                                                setState(() {
+                                                  Map<String, dynamic> a = {
+                                                    "query": "update-notes",
+                                                    "calledDocumentPath":
+                                                        "$hiveDatabasePath~${auctionItem['datetime_id']}",
+                                                    "update_notes": newNotes
+                                                  };
+
+                                                  websocketService
+                                                      .sendMessage(a);
+                                                  print(newNotes);
+                                                  // Update the specific auctionItem in your main list
+                                                  // Persist this change (e.g., to Hive or Firebase)
+                                                  // HiveHelper.updateDocument(hiveDatabasePath, auctionItem['datetime_id'], {'custom_notes': newNotes});
+                                                  // print('Notes for ${auctionItem['h1']} updated to: $newNotes');
+                                                });
+                                              },
+                                            );
+                                          },
+                                        ),
+
+                                        // if (actionDoneList != null)
+                                        //   Padding(
+                                        //     padding:
+                                        //         const EdgeInsets.only(top: 8.0),
+                                        //     child: Wrap(
+                                        //         alignment: WrapAlignment.start,
+                                        //         spacing: 5,
+                                        //         runSpacing: 5,
+                                        //         children: (actionDoneList as List<dynamic>)
+                                        //             .map<Widget>((actionDone) {
+                                        //           return Container(
+                                        //             width: 70.sp,
+                                        //             decoration: BoxDecoration(
+                                        //               color: Colors.white,
+                                        //               boxShadow: [
+                                        //                 BoxShadow(
+                                        //                   color: Colors
+                                        //                       .grey.shade300,
+                                        //                   blurRadius: 0.5,
+                                        //                 )
+                                        //               ],
+                                        //               borderRadius:
+                                        //                   BorderRadius.only(
+                                        //                       topLeft: Radius
+                                        //                           .circular(10),
+                                        //                       bottomRight:
+                                        //                           Radius
+                                        //                               .circular(
+                                        //                                   10)),
+                                        //             ),
+                                        //             padding: EdgeInsets.all(10),
+                                        //             alignment: Alignment.center,
+                                        //             child: text(
+                                        //                 text: actionDone
+                                        //                     .toString(),
+                                        //                 size: 7.sp,
+                                        //                 color:
+                                        //                     Colors.black54,
+                                        //                 fontWeight:
+                                        //                     FontWeight.w400),
+                                        //           );
+                                        //         }).toList()),
+                                        //   ),
                                         // Divider
                                       ],
                                     ),
@@ -1373,7 +1717,6 @@ class _LiveDetailsScreenState extends State<LiveDetailsScreen>
                         );
                       },
                     ),
-
                     Positioned(
                         bottom: 50,
                         right: 20,
@@ -1381,7 +1724,7 @@ class _LiveDetailsScreenState extends State<LiveDetailsScreen>
                             onTap: () {
                               haptic();
                               setState(() {
-                              seenCounter = 0;
+                                seenCounter = 0;
                               });
                               scrollToBottom();
                             },
@@ -1413,7 +1756,6 @@ class _LiveDetailsScreenState extends State<LiveDetailsScreen>
       ),
     );
   }
-
 
   Widget showDateContainer(String currentDate) {
     return Padding(
@@ -1501,7 +1843,7 @@ class _LiveDetailsScreenState extends State<LiveDetailsScreen>
                       "Live",
                       style: GoogleFonts.poppins(
                         color: isLive ? Color(0xffFF6B6B) : Colors.black,
-                        fontWeight: FontWeight.w300,
+                        fontWeight: FontWeight.bold,
                         fontSize: 12.sp,
                       ),
                     ),
@@ -1513,7 +1855,7 @@ class _LiveDetailsScreenState extends State<LiveDetailsScreen>
                       "Highlights",
                       style: GoogleFonts.poppins(
                           color: !isLive ? Color(0xffFF6B6B) : Colors.black,
-                          fontWeight: FontWeight.w300,
+                          fontWeight: FontWeight.bold,
                           fontSize: 12.sp),
                     ),
                   ),
@@ -1525,6 +1867,7 @@ class _LiveDetailsScreenState extends State<LiveDetailsScreen>
       ),
     );
   }
+
   void showSyncDialog(BuildContext context) {
     showDialog(
       barrierDismissible: false,
@@ -1533,7 +1876,7 @@ class _LiveDetailsScreenState extends State<LiveDetailsScreen>
         dialogContext = ctx; // Save context
         return AlertDialog(
           shape:
-          RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           contentPadding: EdgeInsets.all(20),
           content: Column(
             mainAxisSize: MainAxisSize.min,
@@ -1559,8 +1902,66 @@ class _LiveDetailsScreenState extends State<LiveDetailsScreen>
     );
   }
 
+  Widget buildStarToggleButton({
+    Key? key,
+    required bool isStarred,
+    required VoidCallback onStarredClicked,
+    required VoidCallback onNotStarredClicked,
+    double iconSize = 24.0,
+    Color? filledColor,
+    Color? outlinedColor,
+  }) {
+    return StatefulBuilder(
+      key: key, // Pass the key to StatefulBuilder
+      builder: (BuildContext context, StateSetter setState) {
+        // Internal state to manage the current appearance of the star.
+        // We use a mutable list to hold the boolean, allowing us to update it
+        // within the builder's closure. This is a common pattern with StatefulBuilder.
+        final List<bool> _isCurrentlyStarred = [isStarred];
+
+        // To handle external changes to 'isStarred' prop, we need to ensure
+        // our internal state reflects it. This is a simplified equivalent of didUpdateWidget.
+        // If the incoming 'isStarred' is different from our current internal state,
+        // we update the internal state.
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (_isCurrentlyStarred[0] != isStarred) {
+            setState(() {
+              _isCurrentlyStarred[0] = isStarred;
+            });
+          }
+        });
+
+        /// Handles the tap event on the star button.
+        void _handleStarTap() {
+          setState(() {
+            // Toggle the internal state.
+            _isCurrentlyStarred[0] = !_isCurrentlyStarred[0];
+          });
+
+          // Call the appropriate callback based on the new state.
+          if (_isCurrentlyStarred[0]) {
+            onStarredClicked();
+          } else {
+            onNotStarredClicked();
+          }
+        }
+
+        return IconButton(
+          icon: Icon(
+            _isCurrentlyStarred[0]
+                ? Icons.star_rounded
+                : Icons.star_border_rounded,
+            size: iconSize,
+            color: _isCurrentlyStarred[0]
+                ? (filledColor ?? Colors.yellow[700])
+                : (outlinedColor ?? Colors.grey),
+          ),
+          onPressed: _handleStarTap,
+          tooltip: _isCurrentlyStarred[0]
+              ? 'Unstar'
+              : 'Star', // Accessibility tooltip
+        );
+      },
+    );
+  }
 }
-
-
-
-

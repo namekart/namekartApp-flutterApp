@@ -84,6 +84,9 @@ dependencies:
 
   scrollable_positioned_list: ^0.3.8
 
+
+
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -121,7 +124,9 @@ flutter:
     - assets/images/bubbles_images/searchDialogImages/
     - assets/images/home_screen_images/drawer/options/admin/
     - assets/images/home_screen_images/carousel_options/whatnewupdate/
-    - assets/msal_config.json
+    - assets/msal_config_android.json
+    - assets/images/home_screen_images/options_tab/
+    - assets/images/home_screen_images/options_tab/update_version_screen/
 
   # To add assets to your application, add an assets section, like this:
   # assets:

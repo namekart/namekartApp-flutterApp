@@ -11,7 +11,7 @@ import 'package:top_snackbar_flutter/custom_snack_bar.dart';
 import 'package:top_snackbar_flutter/top_snack_bar.dart';
 
 import '../../change_notifiers/WebSocketService.dart';
-import 'UpdateVersions.dart';
+import '../home_screen/tabs/profile_tab/options_tab/options_buttons/UpdateVersions.dart';
 
 class HelpDesk extends StatefulWidget {
   @override

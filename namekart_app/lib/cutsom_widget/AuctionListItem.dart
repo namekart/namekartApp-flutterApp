@@ -4,8 +4,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:namekart_app/activity_helpers/GlobalVariables.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
+import '../activity_helpers/DbSqlHelper.dart';
 import '../change_notifiers/WebSocketService.dart';
-import '../database/HiveHelper.dart';
 
 class AuctionListItem extends StatefulWidget {
   final Map<String, dynamic> auctionData;
@@ -90,7 +90,7 @@ class _AuctionListItemState extends State<AuctionListItem> {
       widget.markAsRead(itemId);
       String path = '$widget.hiveDatabasePath~$itemId';
 
-      await HiveHelper.markAsRead(path);
+      await DbSqlHelper.markAsRead(path);
     }
   }
 

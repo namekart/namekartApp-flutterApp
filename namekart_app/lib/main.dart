@@ -16,11 +16,14 @@ import 'package:namekart_app/screens/login_screens/LoginScreen.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 
+import 'activity_helpers/DbSqlHelper.dart';
 import 'change_notifiers/WebSocketService.dart';
 import 'cutsom_widget/customSyncWidget.dart';
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 
 void main() async {
+
   WidgetsFlutterBinding.ensureInitialized();
 
   HttpOverrides.global = MyHttpOverrides();
@@ -29,11 +32,8 @@ void main() async {
   await Firebase.initializeApp();
   await FCMHelper().initializeFCM();
 
-  final appDir = await getApplicationDocumentsDirectory();
-  await Hive.initFlutter(appDir.path);
+  await DbSqlHelper.initDatabase();
 
-  // Open the storage box
-  await Hive.openBox('storage');
 
   runApp(
     MultiProvider(
@@ -47,6 +47,9 @@ void main() async {
         ChangeNotifierProvider(create: (context) => BubbleButtonClickUpdateNotifier()),
         ChangeNotifierProvider(create: (context) => NotificationPathNotifier()),
         ChangeNotifierProvider(create: (context) => CurrentDateChangeNotifier()),
+        ChangeNotifierProvider(create: (context) => SnackBarSuccessNotifier()),
+        ChangeNotifierProvider(create: (context) => SnackBarFailedNotifier()),
+        ChangeNotifierProvider(create: (context) => ShowDialogNotifier()),
       ],
       child: MyApp(),
     ),
@@ -56,6 +59,7 @@ void main() async {
 
 class MyHttpOverrides extends HttpOverrides {
 
+
   @override
   HttpClient createHttpClient(SecurityContext? context) {
     return super.createHttpClient(context)
@@ -63,11 +67,12 @@ class MyHttpOverrides extends HttpOverrides {
   }
 }
 
-class MyApp extends StatelessWidget {
 
+class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+
 
 
     GlobalProviders.initialize(context);
@@ -77,7 +82,10 @@ class MyApp extends StatelessWidget {
     });
     return ScreenUtilInit(
       designSize: const Size(360, 690),
+
       builder: (context, child) => MaterialApp(
+        navigatorKey: navigatorKey, // <--- ✅ add this line
+
         initialRoute: '/',
         routes: {
           'home': (context) => HomeScreen(),

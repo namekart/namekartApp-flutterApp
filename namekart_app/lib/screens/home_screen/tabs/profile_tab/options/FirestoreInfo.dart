@@ -12,12 +12,12 @@ import 'package:text_scroll/text_scroll.dart';
 import 'package:top_snackbar_flutter/custom_snack_bar.dart';
 import 'package:top_snackbar_flutter/top_snack_bar.dart';
 
-import '../../../../activity_helpers/FirestoreHelper.dart';
-import '../../../../activity_helpers/GlobalFunctions.dart';
-import '../../../../activity_helpers/GlobalVariables.dart';
-import '../../../../activity_helpers/UIHelpers.dart';
-import '../../../../cutsom_widget/AnimatedAvatarIcon.dart';
-import '../../../../cutsom_widget/SuperAnimatedWidget.dart';
+import '../../../../../activity_helpers/FirestoreHelper.dart';
+import '../../../../../activity_helpers/GlobalFunctions.dart';
+import '../../../../../activity_helpers/GlobalVariables.dart';
+import '../../../../../activity_helpers/UIHelpers.dart';
+import '../../../../../cutsom_widget/AnimatedAvatarIcon.dart';
+import '../../../../../cutsom_widget/SuperAnimatedWidget.dart';
 
 
 class FirestoreInfo extends StatefulWidget {

@@ -3,12 +3,11 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:namekart_app/database/HiveHelper.dart';
 import 'package:namekart_app/fcm/FcmHelper.dart';
 import 'package:text_scroll/text_scroll.dart';
 
-import '../../../../activity_helpers/GlobalFunctions.dart';
-import '../../../../activity_helpers/UIHelpers.dart';
+import '../../../../../activity_helpers/GlobalFunctions.dart';
+import '../../../../../activity_helpers/UIHelpers.dart';
 
 
 class SettingsScreen extends StatefulWidget {

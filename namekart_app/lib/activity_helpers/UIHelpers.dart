@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:core';
 
+import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bounceable/flutter_bounceable.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -16,7 +17,8 @@ import 'package:url_launcher/url_launcher.dart';
 import '../change_notifiers/AllDatabaseChangeNotifiers.dart';
 import '../change_notifiers/WebSocketService.dart';
 import '../cutsom_widget/SuperAnimatedWidget.dart';
-import '../database/HiveHelper.dart';
+import '../main.dart';
+import 'DbSqlHelper.dart';
 import 'GlobalVariables.dart';
 
 class CircleTabIndicator extends Decoration {
@@ -132,25 +134,27 @@ Future<void> dynamicDialog(
     String buttonType,
     String buttonDomainName,
     VoidCallback onDialogComplete) async {
-  final bubbleButtonClickUpdateNotifier = Provider.of<BubbleButtonClickUpdateNotifier>(context, listen: false);
+  final showDialogNotifier = Provider.of<
+      ShowDialogNotifier>(context, listen: false);
 
   var buttonOnClickData = buttonData['onclick'];
 
-  if (buttonOnClickData.values.toString().contains("\\\"url\\\"")||buttonOnClickData.keys.toString().contains("url")) {
-    if(buttonOnClickData.keys.toString().contains("url")){
+  if (buttonOnClickData.values.toString().contains("\\\"url\\\"") ||
+      buttonOnClickData.keys.toString().contains("url")) {
+    if (buttonOnClickData.keys.toString().contains("url")) {
       launchInBrowser(buttonOnClickData.values.toList()[0].values.toList()[0]);
-    }else{
-    final outer = buttonOnClickData;
-    final messageString = jsonDecode(outer['text']['h1'])['message'];
+    } else {
+      final outer = buttonOnClickData;
+      final messageString = jsonDecode(outer['text']['h1'])['message'];
 
-    // Step 2: Decode the inner escaped JSON
-    final inner = json.decode(messageString);
+      // Step 2: Decode the inner escaped JSON
+      final inner = json.decode(messageString);
 
-    // Step 3: Extract the "url" map
-    final urlMap = inner['onclick']['url'] as Map<String, dynamic>;
+      // Step 3: Extract the "url" map
+      final urlMap = inner['onclick']['url'] as Map<String, dynamic>;
 
-    // Step 4: Convert to list
-    final urlList = urlMap;
+      // Step 4: Convert to list
+      final urlList = urlMap;
 
       showDialog(
           context: context,
@@ -238,9 +242,8 @@ Future<void> dynamicDialog(
             });
           });
 
-    onDialogComplete();
+      onDialogComplete();
     }
-
   } else if (buttonOnClickData.keys.toString().contains("text")) {
     var buttonOnClickDataList = buttonOnClickData['text'];
     var buttonOnClickDataListKeys = buttonOnClickDataList.keys.toList();
@@ -252,7 +255,15 @@ Future<void> dynamicDialog(
           return AlertDialog(
               contentPadding: const EdgeInsets.all(0),
               backgroundColor: Colors.white,
-              content: Column(
+              content: Container(
+                width: MediaQuery
+                    .of(context)
+                    .size
+                    .width,
+                decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(20),
+                    color: Colors.white
+                ), child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -264,7 +275,7 @@ Future<void> dynamicDialog(
                           color: Colors.black,
                           fontWeight: FontWeight.w400),
                       iconTheme:
-                          IconThemeData(size: 15, color: Colors.black),
+                      IconThemeData(size: 15, color: Colors.black),
                       titleSpacing: 0,
                       backgroundColor: Colors.white,
                       shape: const RoundedRectangleBorder(
@@ -273,25 +284,29 @@ Future<void> dynamicDialog(
                               topRight: Radius.circular(20))),
                     ),
                     Padding(
-                      padding: const EdgeInsets.only(left: 20,right: 20,bottom: 40),
+                      padding: const EdgeInsets.only(
+                          left: 20, right: 20, bottom: 40),
                       child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Padding(
                               padding: const EdgeInsets.all(10),
                               child: SizedBox(
-                                width: MediaQuery.of(context).size.width,
+                                width: MediaQuery
+                                    .of(context)
+                                    .size
+                                    .width,
                                 child: ListView.builder(
                                     shrinkWrap: true,
                                     itemCount:
-                                        buttonOnClickDataListKeys.length,
+                                    buttonOnClickDataListKeys.length,
                                     itemBuilder: (context,
                                         buttonOnClickDataListindex) {
                                       var message = jsonDecode(
-                                              buttonOnClickDataList[
-                                                  buttonOnClickDataListKeys[
-                                                      buttonOnClickDataListindex]])[
-                                          'message'];
+                                          buttonOnClickDataList[
+                                          buttonOnClickDataListKeys[
+                                          buttonOnClickDataListindex]])[
+                                      'message'];
                                       return text(
                                           text: message,
                                           size: 8,
@@ -302,32 +317,51 @@ Future<void> dynamicDialog(
                             ),
                           ]),
                     )
-                  ]));
+                  ]),
+              ));
         });
       },
     );
 
     onDialogComplete();
-
-  } else if (buttonOnClickData.toString().contains("send-to-server-get-dialog")||buttonOnClickData.toString().contains("send-to-server-get-snackbar")) {
+  } else
+  if (buttonOnClickData.toString().contains("send-to-server-get-dialog") ||
+      buttonOnClickData.toString().contains("send-to-server-get-snackbar") ||
+      buttonOnClickData.toString().contains("send-to-server-get-new-bubble")) {
     WebSocketService websocketService = new WebSocketService();
 
+    print(buttonOnClickData);
+
     String calledDocumentPath = "$hivedatabasepath~$documentId";
-    Map<String, String> a;
-    if(buttonOnClickData.toString().contains("send-to-server-get-dialog")) {
-       a = {
-        "send-to-server-get-dialog": buttonOnClickData['send-to-server-get-dialog'],
-        "calledDocumentPath": calledDocumentPath,
-        "calledDocumentPathFields": "uiButtons[$bubbleButtonIndex].$bubbleButtonName.onclick",
-        "type": buttonType.toLowerCase(),
-        "domain": buttonDomainName,
-        "chatid": calledDocumentPath.split("~")[1],
-        "messageid": calledDocumentPath.split("~")[2],
-        "userID": GlobalProviders.loginToken.username!,
-      };
-    }else {
+    Map<String, String> a={};
+    print(buttonOnClickData.toString().contains("send-to-server-get-dialog")||buttonOnClickData.toString().contains("send-to-server-get-snackbar")&&!GlobalProviders.loadedDynamicDialogAgain);
+    if (buttonOnClickData.toString().contains("send-to-server-get-dialog")||buttonOnClickData.toString().contains("send-to-server-get-snackbar")&&!GlobalProviders.loadedDynamicDialogAgain) {
+      try {
+        a = {
+          "send-to-server-get-dialog": buttonOnClickData['send-to-server-get-dialog'],
+          "calledDocumentPath": calledDocumentPath,
+          "calledDocumentPathFields": "uiButtons[$bubbleButtonIndex].$bubbleButtonName.onclick",
+          "type": buttonType.toLowerCase(),
+          "domain": buttonDomainName,
+          "chatid": calledDocumentPath.split("~")[1],
+          "messageid": calledDocumentPath.split("~")[2],
+          "userID": GlobalProviders.loginToken.username!,
+        };
+      }catch (e){
+        a = {
+          "send-to-server-get-snackbar": buttonOnClickData['send-to-server-get-snackbar'],
+          "calledDocumentPath": calledDocumentPath,
+          "calledDocumentPathFields": "uiButtons[$bubbleButtonIndex].$bubbleButtonName.onclick",
+          "type": buttonType.toLowerCase(),
+          "domain": buttonDomainName,
+          "chatid": calledDocumentPath.split("~")[1],
+          "messageid": calledDocumentPath.split("~")[2],
+          "userID": GlobalProviders.loginToken.username!,
+        };
+      }
+    } else if(!GlobalProviders.loadedDynamicDialogAgain){
       a = {
-        "send-to-server-get-snackbar": buttonOnClickData['send-to-server-get-snackbar'],
+        "send-to-server-get-new-bubble": buttonOnClickData['send-to-server-get-new-bubble'],
         "calledDocumentPath": calledDocumentPath,
         "calledDocumentPathFields": "uiButtons[$bubbleButtonIndex].$bubbleButtonName.onclick",
         "type": buttonType.toLowerCase(),
@@ -338,28 +372,42 @@ Future<void> dynamicDialog(
       };
     }
 
-    //sending response to server imp
-    websocketService.sendMessage(a);
+    GlobalProviders.loadedDynamicDialogAgain = true;
 
-    void listener() {
-      print("Notifier triggered");
-      Future.delayed(Duration(milliseconds: 100), () {});
-      dynamicDialog(
-        context,
-        HiveHelper.read(calledDocumentPath)['uiButtons'][bubbleButtonIndex]
-            [bubbleButtonName],
-        hivedatabasepath,
-        documentId,
-        bubbleButtonIndex,
-        bubbleButtonName,
-        buttonType,
-        buttonDomainName,onDialogComplete
-      );
-      bubbleButtonClickUpdateNotifier.removeListener(listener);
+    if(a.isNotEmpty) {
+      //sending response to server imp
+      websocketService.sendMessage(a);
+
+
+      late VoidCallback listener;
+
+
+      listener = () async {
+        print("Notifier triggered");
+
+        Future.delayed(Duration(milliseconds: 100), () {});
+        var buttondata=await DbSqlHelper.getById(hivedatabasepath,documentId);
+
+        print(buttondata!['uiButtons'][bubbleButtonIndex][bubbleButtonName]);
+          dynamicDialog(
+              context,
+              buttondata!['uiButtons'][bubbleButtonIndex][bubbleButtonName],
+              hivedatabasepath,
+              documentId,
+              bubbleButtonIndex,
+              bubbleButtonName,
+              buttonType,
+              buttonDomainName,
+              onDialogComplete
+          );
+          showDialogNotifier.removeListener(listener);
+
+      };
+
+      if (!bubbleButtonName.toString().toLowerCase().contains("bid")) {
+        showDialogNotifier.addListener(listener);
+      }
     }
-
-    bubbleButtonClickUpdateNotifier.addListener(listener);
-
 
   } else if (buttonOnClickData.toString().contains("openinputbox")) {
     TextEditingController _inputTextFieldController =
@@ -533,3 +581,90 @@ Future<void> showConfirmationDialog(
     },
   );
 }
+
+void showTopSnackbar(String message, bool isSuccess) {
+  return showTopSnackBar(
+    navigatorKey.currentState!.overlay!,
+    displayDuration: Duration(seconds: 1),
+    animationDuration: Duration(seconds: 1),
+    isSuccess
+        ? CustomSnackBar.success(message: message)
+        : CustomSnackBar.error(message: message),
+  );
+}
+
+void showCustomDialog(BuildContext context, String title, String message) {
+  showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return StatefulBuilder(
+        builder: (context, setState) {
+          return AlertDialog(
+            contentPadding: const EdgeInsets.all(0),
+            backgroundColor: Colors.white,
+            content: Container(
+              width: MediaQuery.of(context).size.width,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                color: Colors.white,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  AppBar(
+                    toolbarHeight: 50,
+                    title: text(
+                        text: title,
+                        size: 8,
+                        color: Colors.black,
+                        fontWeight: FontWeight.w400),
+                    iconTheme:
+                    IconThemeData(size: 15, color: Colors.black),
+                    titleSpacing: 0,
+                    backgroundColor: Colors.white,
+                    shape: const RoundedRectangleBorder(
+                        borderRadius: BorderRadius.only(
+                            topLeft: Radius.circular(20),
+                            topRight: Radius.circular(20))),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(
+                      left: 20,
+                      right: 20,
+                      bottom: 40,
+                      top: 20,
+                    ),
+                    child: text(text:message,
+                        size: 8,
+                        fontWeight: FontWeight.w300,
+                        color: Color(0xff717171),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+    },
+  );
+}
+
+
+Widget ScaleBigScreenTransition( {required Widget child,required Widget targetScreen}){
+  return OpenContainer(
+    transitionDuration: const Duration(milliseconds:500),
+    transitionType: ContainerTransitionType.fadeThrough,
+    closedElevation: 0.0,
+    closedShape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(0)), // Adjust if your icon has a specific shape
+    closedBuilder: (BuildContext context, VoidCallback openContainer) {
+      return child;
+    },
+    openBuilder: (BuildContext context, VoidCallback closeContainer) {
+      return targetScreen; // The screen that opens
+    },
+  );
+}
+
+

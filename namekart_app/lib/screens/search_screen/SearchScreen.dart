@@ -7,14 +7,14 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:namekart_app/activity_helpers/GlobalVariables.dart';
 import 'package:namekart_app/cutsom_widget/SuperAnimatedWidget.dart';
-import 'package:namekart_app/database/HiveHelper.dart';
+import 'package:namekart_app/screens/features/BiddingListAndWatchListScreen.dart';
 import 'package:text_scroll/text_scroll.dart';
 import 'package:visibility_detector/visibility_detector.dart';
+import '../../activity_helpers/DbSqlHelper.dart';
 import '../../activity_helpers/UIHelpers.dart';
-import '../features/BiddingList.dart';
 import '../features/BulkBid.dart';
 import '../features/BulkFetch.dart';
-import '../features/WatchList.dart';
+import '../features/WatchlistScreen.dart';
 import '../live_screens/live_details_screen.dart';
 
 class Search extends StatefulWidget {
@@ -80,15 +80,18 @@ class _SearchState extends State<Search> {
   }
 
   Future<bool> buildSearchIndexInBackground() async {
-    allAvailableData = HiveHelper.getCategoryPathsOnly();
+    allAvailableData = await DbSqlHelper.getCategoryPathsOnly();
     filteredAvailableData = List.from(allAvailableData);
     filteredAuctionTools = List.from(auctionsTools);
 
-    List<String> paths = HiveHelper.getAllAvailablePaths();
+    List<String> paths =await DbSqlHelper.getAllAvailablePaths();
+
     for (String path in paths) {
       try {
-        var data = HiveHelper.read(path);
-        allDocumentsData[path] = data;
+        var data = await DbSqlHelper.read(path);
+        var timestampKey = data.keys.first;
+        var innerData = data[timestampKey];
+        allDocumentsData[path] = innerData;
         documentKeywords[path] = extractSearchableStrings(data, excludedKeys: ["uibuttons", "device_notification", "actionsDone"]);
       } catch (e) {
         print("Failed to index $path: $e");
@@ -196,7 +199,7 @@ class _SearchState extends State<Search> {
           color: Colors.white,
           child: Column(
             children: [
-              SizedBox(height: 30.sp),
+              SizedBox(height: 50.sp),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
                 child: Container(
@@ -299,13 +302,13 @@ class _SearchState extends State<Search> {
                                   case "watchlist":
                                     Navigator.push(
                                       context,
-                                      MaterialPageRoute(builder: (context) => WatchList()),
+                                      MaterialPageRoute(builder: (context) => BiddingListAndWatchListScreen(api: "/getWatchList")),
                                     );
                                     break;
                                   case "biddinglist":
                                     Navigator.push(
                                       context,
-                                      MaterialPageRoute(builder: (context) => BiddingList()),
+                                      MaterialPageRoute(builder: (context) => BiddingListAndWatchListScreen(api: "/getBiddingList")),
                                     );
                                     break;
                                   case "bulkbid":
@@ -493,6 +496,8 @@ class _SearchState extends State<Search> {
                                                   subCategoryName == "namesilo")
                                                   ? "assets/images/home_screen_images/livelogos/$subCategoryName.png"
                                                   : "assets/images/home_screen_images/appbar_images/notification.png",
+                                              scrollToDatetimeId: "",
+
                                             );
                                           },
                                         ),
@@ -568,7 +573,7 @@ Widget buildPreview(Map<dynamic, dynamic> filteredDocumentData, String hiveDatab
         key: Key('document-item-$itemId'),
         onVisibilityChanged: (info) async {
           if (info.visibleFraction > 0.9 && readStatus == 'no') {
-            await HiveHelper.markAsRead(path);
+            await DbSqlHelper.markAsRead(path);
             setState(() {});
           }
         },
@@ -840,60 +845,57 @@ Widget buildPreview(Map<dynamic, dynamic> filteredDocumentData, String hiveDatab
 
                           const SizedBox(height: 10),
                           if (buttons != null)
-                            Container(
-                              alignment:
-                              AlignmentDirectional.center,
-                              child: Wrap(
-                                alignment: WrapAlignment.start,
-                                spacing: 20.0,
-                                runSpacing: 5,
-                                children:
-                                buttons.map((buttonData) {
-                                  final button = buttonData
-                                      .values.first
-                                  as Map<dynamic, dynamic>;
-                                  final buttonText =
-                                  button['button_text']
-                                  as String;
+                            Wrap(
+                            alignment: WrapAlignment.start,
+                            runSpacing: 5,
+                            children: buttons!.map((buttonData) {
+                              final button = buttonData
+                                  .values.first
+                              as Map<dynamic, dynamic>;
+                              final buttonText =
+                              button['button_text']
+                              as String;
 
-                                  return Padding(
-                                    padding:
-                                    const EdgeInsets.all(
-                                        5),
-                                    child: Column(
-                                      children: [
-                                          Column(
-                                            children: [
-                                              ColorFiltered(
-                                                colorFilter: ColorFilter.mode(
-                                                    Color(
-                                                        0xff717171),
-                                                    BlendMode
-                                                        .srcIn),
-                                                child: getIconForButton(
-                                                    buttonText,
-                                                    15),
-                                              ),
-                                              SizedBox(
-                                                  height: 10),
-                                              text(
-                                                text:
-                                                buttonText,
-                                                color: Color(
-                                                    0xff717171),
-                                                fontWeight:
-                                                FontWeight
-                                                    .w300,
-                                                size: 7.sp,
-                                              ),
-                                            ],
-                                          ),
-                                      ],
-                                    ),
-                                  );
-                                }).toList(),
-                              ),
-                            ),
+                              return SizedBox(
+                                width: 80,
+                                child: Padding(
+                                  padding:
+                                  const EdgeInsets.all(5),
+                                  child: Column(
+                                    children: [
+                                        Column(
+                                          children: [
+                                            ColorFiltered(
+                                              colorFilter: ColorFilter.mode(
+                                                  Color(
+                                                      0xff717171),
+                                                  BlendMode
+                                                      .srcIn),
+                                              child: getIconForButton(
+                                                  buttonText,
+                                                  18),
+                                            ),
+                                            SizedBox(
+                                                height: 10),
+                                            text(
+                                              text:
+                                              buttonText,
+                                              color: Color(
+                                                  0xff717171),
+                                              fontWeight:
+                                              FontWeight
+                                                  .w300,
+                                              size: 8.sp,
+                                            ),
+                                          ],
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                          ),
+
                           const SizedBox(height: 15),
                           Row(
                             mainAxisAlignment:

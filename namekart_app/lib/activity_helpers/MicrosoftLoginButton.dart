@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -5,10 +7,8 @@ import 'package:flutter_bounceable/flutter_bounceable.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:haptic_feedback/haptic_feedback.dart';
 import 'package:msal_auth/msal_auth.dart';
+import 'package:namekart_app/activity_helpers/DbAccountHelper.dart';
 import 'package:namekart_app/activity_helpers/UIHelpers.dart';
-import 'package:namekart_app/database/HiveHelper.dart';
-import 'package:path/path.dart';
-
 import 'GlobalVariables.dart';
 
 class MicrosoftLoginButton extends StatelessWidget {
@@ -33,13 +33,26 @@ class MicrosoftLoginButton extends StatelessWidget {
   }
 
   Future<void> _signInWithMicrosoft(BuildContext context) async {
+
     final msalAuth = await SingleAccountPca.create(
       clientId: 'c671954e-7f6e-4db7-91f9-08fa9eca986b',
-      androidConfig: AndroidConfig(
-        configFilePath: 'assets/msal_config.json',
+      androidConfig: Platform.isAndroid
+          ? AndroidConfig(
+        configFilePath: 'assets/msal_config_android.json',
         redirectUri: GlobalProviders().redirectUri,
-      ),
+      )
+          : null,
+      appleConfig: Platform.isIOS
+          ? AppleConfig(
+        authority: 'https://login.microsoftonline.com/eba2c098-631c-4978-8326-5d25c2d09ca5',
+        authorityType: AuthorityType.aad,
+          broker: Broker.webView
+        // Optionally add redirectUri if supported by package
+      )
+      : null,
     );
+
+
 
     try {
       final result = await msalAuth.acquireToken(scopes: ['User.Read']);
@@ -47,9 +60,8 @@ class MicrosoftLoginButton extends StatelessWidget {
 
       _showSnackBar(context, "✅ Logged in successfully", success: true);
 
-      HiveHelper.delete("account~user~details");
-      HiveHelper.addDataToHive("account~user~details", result.account.username!,
-          {"default": "true"});
+      await DbAccountHelper.deleteData("account~user~details");
+      await DbAccountHelper.addData("account~user~details", result.account.username!, {"default": "true"});
 
       GlobalProviders.userId = result.account.username!;
       GlobalProviders.loginToken = result.account;
@@ -61,7 +73,7 @@ class MicrosoftLoginButton extends StatelessWidget {
     } catch (e) {
       print(e);
       print(e);
-      _showSnackBar(context, "✅ MSAL Sign-in failed $e", success: false);
+      _showSnackBar(context, "✅ MSAL Sign-in failed $e}", success: false);
     }
   }
 
