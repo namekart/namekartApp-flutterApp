@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://user-images.githubusercontent.com/8325299/214695598-a159c632-349c-4ce3-a20c-b26a1112e431.png" alt="Namekart Logo" width="150"/>
+  <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSkola0yN__TwEocKJTw9MV2wq3Rj75PWsCmw&s" alt="Namekart Logo" width="150"/>
 </p>
 
 <h1 align="center">Namekart Mobile</h1>
