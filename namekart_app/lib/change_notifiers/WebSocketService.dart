@@ -70,8 +70,8 @@ class WebSocketService with ChangeNotifier {
       print("Connecting to WebSocket with userId: $userId");
       _channel = WebSocketChannel.connect(
         Uri.parse(
-          // 'ws://nk-phone-app-helper-microservice.politesky-7d4012d0.westus.azurecontainerapps.io/websocket/auctions?userId=$userId',
-          'ws://192.168.1.7:8080/websocket/auctions?userId=$userId',
+          'wss://nk-phone-app-helper-microservice.grayriver-ffcf7337.westus.azurecontainerapps.io/websocket/auctions?userId=$userId',
+          // 'ws://192.168.1.7:8080/websocket/auctions?userId=$userId',
         ),
       );
 

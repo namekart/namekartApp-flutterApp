@@ -44,12 +44,12 @@ class MicrosoftLoginButton extends StatelessWidget {
           : null,
       appleConfig: Platform.isIOS
           ? AppleConfig(
-        authority: 'https://login.microsoftonline.com/eba2c098-631c-4978-8326-5d25c2d09ca5',
-        authorityType: AuthorityType.aad,
+          authority: 'https://login.microsoftonline.com/eba2c098-631c-4978-8326-5d25c2d09ca5',
+          authorityType: AuthorityType.aad,
           broker: Broker.webView
         // Optionally add redirectUri if supported by package
       )
-      : null,
+          : null,
     );
 
 
@@ -111,3 +111,4 @@ class MicrosoftLoginButton extends StatelessWidget {
     );
   }
 }
+

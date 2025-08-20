@@ -68,7 +68,7 @@ class DbSqlHelper {
   }
 
   // Helper to safely decode JSON data
-  static Map<dynamic, dynamic>? _safeJsonDecode(String? jsonString) {
+  static Map<dynamic, dynamic>? safeJsonDecode(String? jsonString) {
     if (jsonString == null || jsonString.isEmpty) return null;
     try {
       return jsonDecode(jsonString) as Map<dynamic, dynamic>;
@@ -108,7 +108,7 @@ class DbSqlHelper {
       whereArgs: [id],
     );
     if (existing.isNotEmpty) {
-      final Map<dynamic, dynamic>? oldData = _safeJsonDecode(existing.first[_colJsonData]);
+      final Map<dynamic, dynamic>? oldData = safeJsonDecode(existing.first[_colJsonData]);
       // Standardize the old read status for comparison
       oldReadStatus = _getReadStatusString(oldData?['read']);
     }
@@ -205,7 +205,7 @@ class DbSqlHelper {
       );
       for (final row in results) {
         final String itemId = row[_colItemId] as String;
-        final Map<dynamic, dynamic>? itemData = _safeJsonDecode(row[_colJsonData]); // Use safe decode
+        final Map<dynamic, dynamic>? itemData = safeJsonDecode(row[_colJsonData]); // Use safe decode
         if (itemData != null) {
           itemsMap[itemId] = itemData;
         } else {
@@ -285,7 +285,7 @@ class DbSqlHelper {
         whereArgs: [itemId, channel, subcollection],
       );
       if (existing.isNotEmpty) {
-        final Map<dynamic, dynamic>? itemData = _safeJsonDecode(existing.first[_colJsonData]);
+        final Map<dynamic, dynamic>? itemData = safeJsonDecode(existing.first[_colJsonData]);
         if (_getReadStatusString(itemData?['read']) == 'no') { // Use helper for consistency
           wasUnread = true;
         }
@@ -364,7 +364,7 @@ class DbSqlHelper {
 
         for (final itemRow in allItems) {
           final String itemId = itemRow[_colItemId] as String;
-          final Map<dynamic, dynamic>? itemData = _safeJsonDecode(itemRow[_colJsonData]);
+          final Map<dynamic, dynamic>? itemData = safeJsonDecode(itemRow[_colJsonData]);
           final String? datetimeIdStr = itemData?['datetime_id']?.toString(); // Use null-aware
 
           if (datetimeIdStr != null) {
@@ -447,7 +447,7 @@ class DbSqlHelper {
         limit: 1,
       );
       if (results.isNotEmpty) {
-        return _safeJsonDecode(results.first[_colJsonData]); // Use safe decode
+        return safeJsonDecode(results.first[_colJsonData]); // Use safe decode
       }
       return null;
     } catch (e) {
@@ -483,7 +483,7 @@ class DbSqlHelper {
       );
 
       if (results.isNotEmpty) {
-        return _safeJsonDecode(results.first[_colJsonData]); // Use safe decode
+        return safeJsonDecode(results.first[_colJsonData]); // Use safe decode
       }
       return null;
     } catch (e) {
@@ -511,7 +511,7 @@ class DbSqlHelper {
         orderBy: 'json_extract($_colJsonData, "\$.datetime_id") DESC',
       );
       return results.map((row) {
-        final Map<dynamic, dynamic>? itemData = _safeJsonDecode(row[_colJsonData]);
+        final Map<dynamic, dynamic>? itemData = safeJsonDecode(row[_colJsonData]);
         return itemData ?? {}; // Return empty map if decode fails
       }).where((item) => item.isNotEmpty).toList(); // Filter out nulls/empty maps
     } catch (e) {
@@ -736,7 +736,7 @@ class DbSqlHelper {
     );
 
     if (existing.isNotEmpty) {
-      final Map<dynamic, dynamic>? itemData = _safeJsonDecode(existing.first[_colJsonData]);
+      final Map<dynamic, dynamic>? itemData = safeJsonDecode(existing.first[_colJsonData]);
       if (itemData != null) { // Only proceed if JSON was valid
         itemData['ringAlarm'] = false;
         await _db.update(
@@ -759,7 +759,7 @@ class DbSqlHelper {
     );
 
     for (final row in results) {
-      final Map<dynamic, dynamic>? itemData = _safeJsonDecode(row[_colJsonData].toString());
+      final Map<dynamic, dynamic>? itemData = safeJsonDecode(row[_colJsonData].toString());
       if (itemData != null) { // Only add if JSON was valid
         final channel = row[_colChannel] as String;
         final subcollection = row[_colSubcollection] as String;
@@ -788,7 +788,7 @@ class DbSqlHelper {
 
       final List<Map<String, dynamic>> dataBlocks = [];
       for (final row in results) {
-        final Map<dynamic, dynamic>? itemData = _safeJsonDecode(row[_colJsonData]);
+        final Map<dynamic, dynamic>? itemData = safeJsonDecode(row[_colJsonData]);
         if (itemData != null && itemData.containsKey('data') && itemData['data'] is Map) {
           dataBlocks.add(Map<String, dynamic>.from(itemData['data']!));
         }
@@ -801,6 +801,174 @@ class DbSqlHelper {
   }
 
   // --- getFilteredNotifications (Modified) ---
+  // Helper to extract a numeric value for a given category from a string like "Age:6 | EST:180"
+  static double? _extractNumericValueFromEmbeddedString(String? sourceString, String categoryName) {
+    if (sourceString == null || sourceString.isEmpty || categoryName.isEmpty) {
+      print("DEBUG: _extractNumericValueFromEmbeddedString: Invalid input. sourceString: $sourceString, categoryName: $categoryName");
+      return null;
+    }
+
+    // --- CRITICAL FIX START ---
+    final String lowerSourceString = sourceString.toLowerCase(); // Convert source to lowercase
+    final String lowerCategoryName = categoryName.toLowerCase(); // Convert category to lowercase
+    final String searchPattern = '$lowerCategoryName:'; // Build lowercase pattern
+    // --- CRITICAL FIX END ---
+
+    final int startIndex = lowerSourceString.indexOf(searchPattern); // Search in lowercase
+
+    if (startIndex == -1) {
+      print("DEBUG: _extractNumericValueFromEmbeddedString: Category '$categoryName' not found (case-insensitive) in '$sourceString'.");
+      return null; // Category not found
+    }
+
+    // The indices and substrings should now operate on the ORIGINAL sourceString
+    // to preserve case and content of the actual value, but calculation from lowerCase `startIndex`
+    int valueStart = startIndex + searchPattern.length;
+
+    // Adjust valueStart based on the ORIGINAL string's content
+    // We need to find the actual value starting point in the original string.
+    // The `startIndex` is derived from the lowercase search, so `valueStart`
+    // will be an index into the lowercase string. We need to apply this
+    // offset to the original string.
+
+    // Calculate effective start index in original string:
+    // Find the actual position of the category in the original string (case-sensitive)
+    final int actualCategoryStartIndex = sourceString.toLowerCase().indexOf(lowerCategoryName + ":");
+    if (actualCategoryStartIndex == -1) { // Fallback, though unlikely given prior check
+      return null;
+    }
+    int actualValueStartIndex = actualCategoryStartIndex + categoryName.length + 1; // +1 for the colon
+
+    // Check for an optional space after the colon in the ORIGINAL string
+    if (actualValueStartIndex < sourceString.length && sourceString[actualValueStartIndex] == ' ') {
+      actualValueStartIndex++;
+    }
+
+    int valueEnd = sourceString.indexOf('|', actualValueStartIndex);
+    String valueString;
+
+    if (valueEnd == -1) {
+      valueString = sourceString.substring(actualValueStartIndex);
+    } else {
+      valueString = sourceString.substring(actualValueStartIndex, valueEnd);
+    }
+
+    final parsedValue = double.tryParse(valueString.trim());
+    print("DEBUG: _extractNumericValueFromEmbeddedString: Source: '$sourceString', Category: '$categoryName', Extracted String: '${valueString.trim()}', Parsed Double: $parsedValue");
+    return parsedValue;
+  }
+
+  // ... (getFilteredNotifications - no changes needed here for this specific issue) ...
+
+
+  // --- REVISED: getFilteredNotificationsByEmbeddedNumericValue ---
+  static Future<List<Map<dynamic, dynamic>>> getFilteredNotificationsByEmbeddedNumericValue({
+    required String categoryName,
+    required NumericComparisonOperator operator,
+    required double numericValue,
+    List<String> hxFields = const ['\$.data.h1', '\$.data.h2', '\$.data.h3', '\$.data.h4', '\$.data.h5'],
+    String orderBy = 'json_extract(json_data, "\$.datetime_id") DESC',
+    int? limit,
+    int? offset,
+  }) async {
+    print("DEBUG: getFilteredNotificationsByEmbeddedNumericValue called for category: $categoryName, operator: $operator, value: $numericValue");
+
+    final String jsonDataCol = _colJsonData;
+    final List<String> orClauses = [];
+    final List<Object?> args = [];
+
+    for (final hxPath in hxFields) {
+      orClauses.add('json_extract($jsonDataCol, "$hxPath") LIKE ?');
+      args.add('%${categoryName}:%'); // Broad search for "Category:" pattern
+    }
+
+    if (orClauses.isEmpty) {
+      print("DEBUG: getFilteredNotificationsByEmbeddedNumericValue: No hxFields to search, returning empty.");
+      return [];
+    }
+
+    final String whereClause = '(${orClauses.join(' OR ')})';
+    print("DEBUG: SQL whereClause for broad search: $whereClause with args: $args");
+
+
+    final List<Map<String, dynamic>> rawResults = await queryNotificationsByJson(
+      whereClause: whereClause,
+      whereArgs: args,
+      orderBy: orderBy,
+      limit: limit,
+      offset: offset,
+    );
+    print("DEBUG: Raw results from DB (count: ${rawResults.length}): $rawResults");
+
+
+    final List<Map<dynamic, dynamic>> filteredDartResults = [];
+    for (final row in rawResults) {
+      final String? jsonDataString = row[_colJsonData] as String?;
+      final Map<dynamic, dynamic>? decodedJson = safeJsonDecode(jsonDataString);
+
+      if (decodedJson == null || decodedJson['data'] == null || decodedJson['data'] is! Map) {
+        print("DEBUG: Skipping row (no valid JSON data or 'data' field): $row");
+        continue;
+      }
+
+      bool matchesFilter = false;
+      for (final hxPath in hxFields) {
+        final String hxKey = hxPath.split('.').last; // Extracts 'h1', 'h2', etc.
+        final String? hxValue = decodedJson['data'][hxKey] as String?;
+
+        print("DEBUG: Processing row for hxPath: $hxPath, hxKey: $hxKey, hxValue: '$hxValue'");
+
+        if (hxValue != null) {
+          final double? extractedNum = _extractNumericValueFromEmbeddedString(hxValue, categoryName);
+
+          if (extractedNum != null) {
+            bool comparisonResult = false;
+            switch (operator) {
+              case NumericComparisonOperator.greaterThan:
+                comparisonResult = extractedNum > numericValue;
+                break;
+              case NumericComparisonOperator.lessThan:
+                comparisonResult = extractedNum < numericValue;
+                break;
+              case NumericComparisonOperator.equals:
+                comparisonResult = extractedNum == numericValue;
+                break;
+              case NumericComparisonOperator.greaterThanOrEqual:
+                comparisonResult = extractedNum >= numericValue;
+                break;
+              case NumericComparisonOperator.lessThanOrEqual:
+                comparisonResult = extractedNum <= numericValue;
+                break;
+            }
+            print("DEBUG: Comparison: Extracted '$extractedNum' $operator '$numericValue' -> $comparisonResult");
+            if (comparisonResult) {
+              matchesFilter = true;
+              break;
+            }
+          }
+        }
+      }
+
+      if (matchesFilter) {
+        String channel = row?['channel']?.toString() ?? 'unknown_channel';
+        String subchannel = row?['subcollection']?.toString() ?? 'unknown_subchannel';
+        String constructedPath = 'notifications~$channel~$subchannel';
+        filteredDartResults.add({
+          _colItemId: row[_colItemId],
+          'path': constructedPath,
+          ...decodedJson,
+        });
+        print("DEBUG: Row MATCHES filter, added to results. Item ID: ${row[_colItemId]}");
+      } else {
+        print("DEBUG: Row does NOT match filter. Item ID: ${row[_colItemId]}");
+      }
+    }
+    print("DEBUG: Final Dart-filtered results count: ${filteredDartResults.length}");
+    return filteredDartResults;
+  }
+
+
+  // --- Original getFilteredNotifications (Unchanged, it handles general cases) ---
   static Future<List<Map<dynamic, dynamic>>> getFilteredNotifications({
     required QueryCondition condition,
     String orderBy = 'json_extract(json_data, "\$.datetime_id") DESC',
@@ -811,9 +979,8 @@ class DbSqlHelper {
     List<Object?> args = [];
 
     final String jsonDataCol = _colJsonData;
-    final String fullJsonPath = condition.jsonPath; // This could be a specific path or the broad search indicator
+    final String fullJsonPath = condition.jsonPath;
 
-    // --- Special handling for broad keyword search or embedded values ---
     if (fullJsonPath == DbSqlHelper.anyFieldKeywordSearchKey) {
       final List<String> orClauses = [];
       final String likeValue = '%${condition.value}%';
@@ -821,7 +988,7 @@ class DbSqlHelper {
       // 1. Search directly in common top-level fields
       final List<String> topLevelTextPaths = [
         '\$.device_notification[0].title', '\$.device_notification[0].message', '\$.device_notification[0].topic',
-        '\$.read' // Assuming read can be searched as text
+        '\$.read'
       ];
       for (final path in topLevelTextPaths) {
         orClauses.add('json_extract($jsonDataCol, "$path") LIKE ?');
@@ -835,13 +1002,11 @@ class DbSqlHelper {
         args.add(likeValue);
 
         // Also check if the 'category:value' pattern exists within hX fields
-        // E.g., if value is "10" and category is "Age", check if "Age:10" or "Age: 10" is in hX
-        if (condition.value.isNotEmpty) {
-          // This specific pattern targets "Category:Value" inside a string
+        if (condition.value.isNotEmpty && condition.categoryName != null && condition.categoryName!.isNotEmpty) {
           orClauses.add('json_extract($jsonDataCol, "$hXPath") LIKE ?');
-          // Example: "Age:10 | EST:20" -> search for "%Age: 10%" or "%Age:10%"
-          args.add('%${condition.categoryName ?? ''}:%${condition.value}%'); // Use categoryName for specific check
-          args.add('%${condition.categoryName ?? ''}: %${condition.value}%'); // With space
+          args.add('%${condition.categoryName!}:%${condition.value}%');
+          orClauses.add('json_extract($jsonDataCol, "$hXPath") LIKE ?');
+          args.add('%${condition.categoryName!}: %${condition.value}%');
         }
       }
 
@@ -854,7 +1019,7 @@ class DbSqlHelper {
     } else if (fullJsonPath.isEmpty) {
       throw Exception('JSON Path cannot be empty for filtering.');
     } else {
-      // Standard JSON path-based filtering as before
+      // Standard JSON path-based filtering
       switch (condition.condition) {
         case FilterCondition.isEmpty:
           whereClause = 'json_extract($jsonDataCol, "$fullJsonPath") IS NULL OR json_extract($jsonDataCol, "$fullJsonPath") = ?';
@@ -917,19 +1082,20 @@ class DbSqlHelper {
 
     return rawResults.map((row) {
       final String? jsonData = row[_colJsonData] as String?;
-      final Map<dynamic, dynamic>? decodedJson = _safeJsonDecode(jsonData);
+      final Map<dynamic, dynamic>? decodedJson = safeJsonDecode(jsonData);
       String channel = row?['channel']?.toString() ?? 'unknown_channel';
       String subchannel = row?['subcollection']?.toString() ?? 'unknown_subchannel';
       String constructedPath = 'notifications~$channel~$subchannel';
 
       return {
-        _colItemId: row[_colItemId], // Ensure item_id is always included
-        'path': constructedPath,    // <--- Add the constructed path
+        _colItemId: row[_colItemId],
+        'path': constructedPath,
         ...decodedJson ?? {},
       };
     }).toList();
   }
 
+  // --- queryNotificationsByJson (Unchanged) ---
   static Future<List<Map<String, dynamic>>> queryNotificationsByJson({
     required String whereClause,
     List<Object?>? whereArgs,
@@ -959,5 +1125,21 @@ class DbSqlHelper {
     }
   }
 
-
+  static Future<List<Map<String, dynamic>>> doQueryOnDatabase(
+      String sql, [
+        List<Object?>? arguments,
+      ]) async {
+    try {
+      if (_database == null) {
+        throw Exception('Database not initialized. Call DbSqlHelper.initDatabase() first.');
+      }
+      print("Executing raw SQL query: '$sql' with arguments: $arguments");
+      final List<Map<String, dynamic>> results = await _db.rawQuery(sql, arguments);
+      print("Query executed successfully. Rows returned: ${results.length}");
+      return results;
+    } catch (e) {
+      print("Error executing custom SQL query: $e");
+      rethrow; // Re-throw the exception to be handled by the caller
+    }
+  }
 }

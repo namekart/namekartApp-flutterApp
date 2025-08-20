@@ -16,7 +16,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../change_notifiers/AllDatabaseChangeNotifiers.dart';
 import '../change_notifiers/WebSocketService.dart';
-import '../cutsom_widget/SuperAnimatedWidget.dart';
+import '../custom_widget/SuperAnimatedWidget.dart';
 import '../main.dart';
 import 'DbSqlHelper.dart';
 import 'GlobalVariables.dart';

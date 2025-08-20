@@ -82,7 +82,7 @@ Widget getIconForButton(String buttonText, double iconSize) {
   String name = buttonText.toLowerCase().trim();
 
   for (final entry in _iconMap.entries) {
-    if (name.contains(entry.key)) {
+    if (name==entry.key) {
       return entry.value(iconSize);
     }
   }

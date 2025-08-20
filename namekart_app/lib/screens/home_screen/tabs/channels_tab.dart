@@ -6,19 +6,37 @@ import 'package:flutter_bounceable/flutter_bounceable.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:namekart_app/activity_helpers/GlobalFunctions.dart';
-import 'package:namekart_app/cutsom_widget/AnimatedSlideTransition.dart';
+import 'package:namekart_app/custom_widget/AnimatedSlideTransition.dart';
 import 'package:provider/provider.dart';
+import 'package:shimmer/shimmer.dart';
 
 import '../../../activity_helpers/DbSqlHelper.dart';
 import '../../../activity_helpers/FirestoreHelper.dart';
 import '../../../activity_helpers/UIHelpers.dart';
 import '../../../change_notifiers/AllDatabaseChangeNotifiers.dart';
 import '../../../change_notifiers/WebSocketService.dart';
-import '../../../cutsom_widget/SuperAnimatedWidget.dart';
+import '../../../custom_widget/SuperAnimatedWidget.dart';
 import '../../../fcm/FcmHelper.dart';
 import '../../live_screens/live_details_screen.dart';
 
 typedef DisplaySubitem = Map<String, dynamic>; // {'name': 'subItemName', 'unreadCount': 5}
+
+// --- Modern UI Constants ---
+class AppColors {
+  static const Color background = Color(0xFFF7F9FC);
+  static const Color card = Colors.white;
+  static const Color primaryText = Color(0xFF2D3748);
+  static const Color secondaryText = Color(0xFF718096);
+  static const Color accent = Colors.deepPurple; // A nice accent color
+  static const Color notificationBadge = Color(0xFFE53E3E); // Vibrant Red
+  static const Color borderColor = Color(0xFFE2E8F0);
+}
+
+class AppSpacings {
+  static const double screenPadding = 16.0;
+  static const double cardPadding = 16.0;
+  static const double itemSpacing = 12.0;
+}
 
 class ChannelsTab extends StatefulWidget {
   const ChannelsTab({super.key});
@@ -45,6 +63,8 @@ class _ChannelsTabState extends State<ChannelsTab> with WidgetsBindingObserver {
 
   final Map<String, ValueNotifier<int>> _subcollectionUnreadCountNotifiers = {};
 
+  // All your existing state management and data fetching logic remains unchanged.
+  // ... (initState, _debounceSearch, _handleNotificationDatabaseChange, etc.)
   @override
   void initState() {
     super.initState();
@@ -449,7 +469,7 @@ class _ChannelsTabState extends State<ChannelsTab> with WidgetsBindingObserver {
         if (isInitialLoad || isSearchChange) _isInitialLoading = false;
         _dataMessage = "Error processing data.";
       }
-  }
+    }
   }
 
   // New method to re-sort the already filtered data without full re-processing
@@ -516,279 +536,426 @@ class _ChannelsTabState extends State<ChannelsTab> with WidgetsBindingObserver {
     super.dispose();
   }
 
+  /// Navigates to the details screen for a specific channel sub-item.
+  void _navigateToDetails(String channel, String subItemName) async {
+    await Navigator.push(
+      context,
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) {
+          return LiveDetailsScreen(
+            mainCollection: "notifications",
+            subCollection: channel.trim(),
+            subSubCollection: subItemName.trim(),
+            showHighlightsButton: false,
+            img: "assets/images/home_screen_images/appbar_images/notification.png",
+            scrollToDatetimeId: "",
+          );
+        },
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          const begin = Offset(1.0, 0.0);
+          const end = Offset.zero;
+          const curve = Curves.ease;
+          final tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+          return SlideTransition(position: animation.drive(tween), child: child);
+        },
+        transitionDuration: const Duration(milliseconds: 300),
+      ),
+    );
+    _handleNotificationDatabaseChange(); // Trigger update on return
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: CustomScrollView(
+        controller: _scrollController,
+        slivers: [
+          SliverAppBar(
+            surfaceTintColor: Colors.white,
+            backgroundColor: AppColors.background,
+            pinned: false,
+            elevation: 0,
+            toolbarHeight: 50.h,
+            title: _buildSearchBar(),
+          ),
+          SliverToBoxAdapter(
+            child: _buildHeader(),
+          ),
+          SliverToBoxAdapter(child: SizedBox(height: 10.h)),
+          _buildBody(),
+          SliverToBoxAdapter(child: SizedBox(height: 50.h)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSearchBar() {
+    return TextField(
+      controller: searchController,
+      style: GoogleFonts.poppins(
+        fontWeight: FontWeight.w400,
+        color: AppColors.primaryText,
+        fontSize: 12.sp,
+      ),
+      decoration: InputDecoration(
+        hintText: "Search Channels...",
+        hintStyle: GoogleFonts.poppins(color: AppColors.secondaryText),
+        prefixIcon: const Icon(CupertinoIcons.search, color: AppColors.secondaryText,size: 20,),
+        filled: true,
+        fillColor: AppColors.card,
+        contentPadding: EdgeInsets.symmetric(vertical: 10.h),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12.r),
+          borderSide: const BorderSide(color: AppColors.borderColor),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12.r),
+          borderSide: const BorderSide(color: AppColors.borderColor),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12.r),
+          borderSide: const BorderSide(color: AppColors.accent, width: 1.5),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return AnimatedSize(
+      duration: const Duration(milliseconds: 300),
+      child: _overallNewNotificationPresent
+          ? Align(
+        alignment: Alignment.centerRight,
+        child: TextButton.icon(
+          onPressed: () async {
+            haptic();
+            await DbSqlHelper.markEverythingAsRead();
+            _handleNotificationDatabaseChange(); // Trigger update
+          },
+          icon: Icon(CupertinoIcons.checkmark_seal, size: 16.sp, color: AppColors.secondaryText),
+          label: Text(
+            "Mark All As Read",
+            style: GoogleFonts.poppins(
+                fontSize: 10.sp,
+                fontWeight: FontWeight.w500,
+                color: AppColors.secondaryText),
+          ),
+          style: TextButton.styleFrom(
+            padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 4.h),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.r)),
+          ),
+        ),
+      )
+          : const SizedBox.shrink(),
+    );
+  }
+
+  Widget _buildBody() {
+    if (_isInitialLoading) {
+      return _buildShimmerList();
+    }
+
+    if (_filteredAndSortedMap.isEmpty) {
+      return SliverFillRemaining(
+        hasScrollBody: false,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(CupertinoIcons.tray, size: 50.sp, color: AppColors.secondaryText),
+            SizedBox(height: 16.h),
+            Text(
+              _currentSearchText.isEmpty ? "No Channels Found" : "No results for '$_currentSearchText'",
+              textAlign: TextAlign.center,
+              style: GoogleFonts.poppins(
+                fontSize: 14.sp,
+                fontWeight: FontWeight.w500,
+                color: AppColors.primaryText,
+              ),
+            ),
+            SizedBox(height: 8.h),
+            Text(
+              _currentSearchText.isEmpty
+                  ? "Channels will appear here once they are available."
+                  : "Try checking your spelling or searching for something else.",
+              textAlign: TextAlign.center,
+              style: GoogleFonts.poppins(
+                  fontSize: 10.sp,
+                  fontWeight: FontWeight.w400,
+                  color: AppColors.secondaryText),
+            ),
+            SizedBox(height: 20.h),
+            if (_currentSearchText.isEmpty)
+              ElevatedButton.icon(
+                onPressed: () => _initializeAppLoad(),
+                icon: const Icon(Icons.refresh),
+                label: const Text("Try Again"),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.accent,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r)),
+                ),
+              ),
+          ],
+        ),
+      );
+    }
+
+    return SliverPadding(
+      padding: EdgeInsets.symmetric(horizontal: AppSpacings.screenPadding),
+      sliver: SliverList.builder(
+        itemCount: _filteredAndSortedMap.length,
+        itemBuilder: (context, index) {
+          final String channel = _filteredAndSortedMap.keys.elementAt(index);
+          final bool isExpanded = isExpandedMap[channel] ?? true;
+          final List<DisplaySubitem> subcollections = _filteredAndSortedMap[channel]!;
+
+          return SuperAnimatedWidget(
+            effects: const [AnimationEffect.fade, AnimationEffect.slide],
+            child: _ChannelCard(
+              channel: channel,
+              isExpanded: isExpanded,
+              onToggle: () {
+                haptic();
+                setState(() => isExpandedMap[channel] = !isExpanded);
+              },
+              subItems: subcollections.map((displaySubitem) {
+                final String subItemName = displaySubitem['name'] as String;
+                final unreadNotifier = _subcollectionUnreadCountNotifiers[subItemName];
+                return _SubItemTile(
+                  subItemName: subItemName,
+                  unreadNotifier: unreadNotifier ?? ValueNotifier(0),
+                  onTap: () => _navigateToDetails(channel, subItemName),
+                );
+              }).toList(),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildShimmerList() {
+    return SliverPadding(
+      padding: EdgeInsets.symmetric(horizontal: AppSpacings.screenPadding),
+      sliver: SliverToBoxAdapter(
+        child: Shimmer.fromColors(
+          baseColor: Colors.grey[300]!,
+          highlightColor: Colors.grey[100]!,
+          child: ListView.builder(
+            itemCount: 5, // Increased count for better visual
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemBuilder: (context, index) => const _ShimmerPlaceholderCard(),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A card representing a single channel and its sub-items.
+class _ChannelCard extends StatelessWidget {
+  const _ChannelCard({
+    required this.channel,
+    required this.isExpanded,
+    required this.onToggle,
+    required this.subItems,
+  });
+
+  final String channel;
+  final bool isExpanded;
+  final VoidCallback onToggle;
+  final List<Widget> subItems;
+
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: MediaQuery.of(context).size.width,
-      height: MediaQuery.of(context).size.height,
-      color: const Color(0xffF7F7F7),
-      child: SingleChildScrollView(
-        controller: _scrollController,
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            children: [
-              // Search Bar
-              AnimatedSlideTransition(
-                animationType: BoxAnimationType.fadeInFromTop,
-                duration: const Duration(seconds: 1),
-                child: Container(
-                  width: double.infinity,
-                  height: 45.sp,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.black12, width: 1),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.only(left: 15, bottom: 13),
-                    child: TextField(
-                      controller: searchController,
+      margin: EdgeInsets.only(bottom: AppSpacings.itemSpacing),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(16.r),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Bounceable(
+            onTap: onToggle,
+            child: Padding(
+              padding: EdgeInsets.all(AppSpacings.cardPadding),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      channel,
                       style: GoogleFonts.poppins(
-                        fontWeight: FontWeight.w400,
-                        color: const Color(0xffA8A7A7),
-                        fontSize: 10,
+                        fontSize: 14.sp,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.primaryText,
                       ),
-                      decoration: const InputDecoration(
-                        border: InputBorder.none,
-                        hintText: "Search",
-                      ),
-                      textAlignVertical: TextAlignVertical.center,
                     ),
                   ),
+                  AnimatedRotation(
+                    turns: isExpanded ? 0.5 : 0.0,
+                    duration: const Duration(milliseconds: 300),
+                    child: const Icon(Icons.keyboard_arrow_down, color: AppColors.secondaryText),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          AnimatedSize(
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+            alignment: Alignment.topCenter,
+            child: isExpanded
+                ? Column(
+              children: [
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16.0),
+                  child: Divider(height: 1, color: AppColors.borderColor),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Column(children: subItems),
+                ),
+              ],
+            )
+                : const SizedBox.shrink(),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A tile for a sub-item within a channel card.
+class _SubItemTile extends StatelessWidget {
+  const _SubItemTile({
+    required this.subItemName,
+    required this.unreadNotifier,
+    required this.onTap,
+  });
+
+  final String subItemName;
+  final ValueNotifier<int> unreadNotifier;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      child: Bounceable(
+        onTap: onTap,
+        child: Container(
+          padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 14.h),
+          decoration: BoxDecoration(
+            color: AppColors.background,
+            borderRadius: BorderRadius.circular(12.r),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  subItemName.trim(),
+                  style: GoogleFonts.poppins(
+                    fontSize: 12.sp,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.primaryText,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
-              const SizedBox(height: 10),
-
-              if (_overallNewNotificationPresent)
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    Bounceable(
-                      onTap: () async {
-                        await DbSqlHelper.markEverythingAsRead();
-                        _handleNotificationDatabaseChange(); // Trigger update
-                      },
-                      child: Padding(
-                        padding: const EdgeInsets.only(right: 10),
-                        child: text(
-                          text: "Mark All As Read",
-                          size: 10,
-                          fontWeight: FontWeight.w300,
-                          color: const Color(0xff717171),),
-                      ),
-                    ),
-                  ],
-                ),
-
-              // Channel list
-              if (!_isInitialLoading && _filteredAndSortedMap.isNotEmpty)
-                AnimatedSlideTransition(
-                  animationType: BoxAnimationType.fadeInFromBottom,
-                  duration: const Duration(seconds: 1),
-                  child: ListView.builder(
-                    itemCount: _filteredAndSortedMap.length,
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemBuilder: (context, index) {
-                      String channel = _filteredAndSortedMap.keys.elementAt(index);
-                      bool isExpanded = isExpandedMap[channel] ?? false;
-                      List<DisplaySubitem> subcollections = _filteredAndSortedMap[channel]!;
-
-                      haptic();
-
-                      return SuperAnimatedWidget(
-                        effects: const [AnimationEffect.fade, AnimationEffect.slide],
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-                          child: Bounceable(
-                            onTap: () {
-                              setState(() {
-                                isExpandedMap[channel] = !isExpanded;
-                              });
-                            },
-                            child: Container(
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(10),
-                                color: const Color(0xffFFFFFF),
-                                boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 1)],
-                              ),
-                              child: Padding(
-                                padding: const EdgeInsets.all(15),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        text(
-                                          text: channel,
-                                          size: 11,
-                                          fontWeight: FontWeight.w300,
-                                          color: const Color(0xffA8A7A7),
-                                        ),
-                                        AnimatedRotation(
-                                          turns: isExpanded ? 0.5 : 0.0,
-                                          duration: const Duration(milliseconds: 300),
-                                          child: const Icon(Icons.keyboard_arrow_down, size: 18),
-                                        ),
-                                      ],
-                                    ),
-                                    AnimatedSize(
-                                      duration: const Duration(milliseconds: 300),
-                                      curve: Curves.easeInOut,
-                                      alignment: Alignment.topCenter,
-                                      child: (isExpanded && subcollections.isNotEmpty)
-                                          ? Column(
-                                        children: subcollections.map((displaySubitem) {
-                                          final String subItemName = displaySubitem['name'] as String;
-                                          final ValueNotifier<int>? unreadNotifier = _subcollectionUnreadCountNotifiers[subItemName];
-
-                                          return ValueListenableBuilder<int>(
-                                            valueListenable: unreadNotifier ?? ValueNotifier<int>(0),
-                                            builder: (context, unreadCount, child) {
-                                              return Padding(
-                                                padding: subcollections.indexOf(displaySubitem) == 0
-                                                    ? const EdgeInsets.only(top: 20)
-                                                    : const EdgeInsets.only(top: 10),
-                                                child: Bounceable(
-                                                  onTap: () async {
-                                                    await Navigator.push(
-                                                      context,
-                                                      PageRouteBuilder(
-                                                        pageBuilder: (context, animation, secondaryAnimation) {
-                                                          return LiveDetailsScreen(
-                                                            mainCollection: "notifications",
-                                                            subCollection: channel.trim(),
-                                                            subSubCollection: subItemName.trim(),
-                                                            showHighlightsButton: false,
-                                                            img: "assets/images/home_screen_images/appbar_images/notification.png",
-                                                            scrollToDatetimeId: "",
-                                                          );
-                                                        },
-                                                        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                                                          const begin = Offset(1.0, 0.0);
-                                                          const end = Offset.zero;
-                                                          const curve = Curves.ease;
-                                                          final tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
-                                                          final offsetAnimation = animation.drive(tween);
-                                                          return SlideTransition(
-                                                            position: offsetAnimation,
-                                                            child: child,
-                                                          );
-                                                        },
-                                                        transitionDuration: const Duration(milliseconds: 300),
-                                                      ),
-                                                    );
-                                                    _handleNotificationDatabaseChange(); // Trigger update on return
-                                                  },
-                                                  child: Container(
-                                                    padding: const EdgeInsets.all(10),
-                                                    decoration: BoxDecoration(
-                                                      borderRadius: BorderRadius.circular(10),
-                                                      color: const Color(0xffFFFFFF),
-                                                      boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 1)],
-                                                    ),
-                                                    child: Row(
-                                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                                      children: [
-                                                        Expanded(
-                                                          child: text(
-                                                            text: subItemName.trim(),
-                                                            size: 11,
-                                                            fontWeight: FontWeight.w300,
-                                                            color: const Color(0xff3F3F41),
-                                                          ),
-                                                        ),
-                                                        Padding(
-                                                          padding: const EdgeInsets.only(right: 80),
-                                                          child: text(
-                                                            text: "${unreadCount} New Notification",
-                                                            size: 9,
-                                                            fontWeight: FontWeight.w300,
-                                                            color: unreadCount == 0
-                                                                ? const Color(0xffA8A7A7)
-                                                                : const Color(0xff80B71C1C),
-                                                          ),
-                                                        ),
-                                                        const Icon(
-                                                          CupertinoIcons.arrow_right,
-                                                          size: 11,
-                                                          color: Color(0xff717171),
-                                                        ),
-                                                      ],
-                                                    ),
-                                                  ),
-                                                ),
-                                              );
-                                            },
-                                          );
-                                        }).toList(),
-                                      )
-                                          : const SizedBox.shrink(),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                )
-              else if (!_isInitialLoading && _filteredAndSortedMap.isEmpty)
-                AnimatedSlideTransition(
-                  animationType: BoxAnimationType.fadeInFromBottom,
-                  duration: const Duration(seconds: 1),
-                  child: Column(
-                    children: [
-                      text(
-                        text: _dataMessage,
-                        size: 11,
-                        fontWeight: FontWeight.w300,
-                        color: const Color(0xffA8A7A7),
-                      ),
-                      MaterialButton(
-                        onPressed: () {
-                          _initializeAppLoad();
-                        },
-                        child: text(text: "Try Again", size: 13, color: Colors.black, fontWeight: FontWeight.w300),
-                      )
-                    ],
-                  ),
-                ),
-
-              if (_isInitialLoading)
-                AnimatedSlideTransition(
-                  animationType: BoxAnimationType.fadeInFromBottom,
-                  duration: const Duration(seconds: 1),
-                  child: Column(
-                    children: [
-                      SizedBox(height: 20.h),
-                      SizedBox(
-                        width: 30.w,
-                        height: 30.h,
-                        child: CircularProgressIndicator(
-                          color: Colors.black12,
-                          strokeWidth: 5,
-                        ),
-                      ),
-                      SizedBox(height: 10.h),
-                      text(
-                        text: _dataMessage,
-                        size: 11.sp,
-                        fontWeight: FontWeight.w300,
-                        color: const Color(0xffA8A7A7),
-                      ),
-                    ],
-                  ),
-                ),
-
-              const SizedBox(height: 50),
+              const Spacer(),
+              ValueListenableBuilder<int>(
+                valueListenable: unreadNotifier,
+                builder: (context, unreadCount, _) {
+                  return _NotificationBadge(count: unreadCount);
+                },
+              ),
+              SizedBox(width: 8.w),
+              const Icon(
+                CupertinoIcons.chevron_right,
+                size: 16,
+                color: AppColors.secondaryText,
+              ),
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// A visual badge to display the number of unread notifications.
+class _NotificationBadge extends StatelessWidget {
+  const _NotificationBadge({required this.count});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    if (count <= 0) {
+      return const SizedBox.shrink(); // Don't show anything if count is zero
+    }
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
+      decoration: BoxDecoration(
+        color: AppColors.notificationBadge,
+        borderRadius: BorderRadius.circular(20.r),
+      ),
+      child: Text(
+        count > 99 ? "99+" : count.toString(),
+        style: GoogleFonts.poppins(
+          color: Colors.white,
+          fontSize: 10.sp,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+}
+
+// --- NEW: Shimmer Placeholder Widget based on your example ---
+class _ShimmerPlaceholderCard extends StatelessWidget {
+  const _ShimmerPlaceholderCard();
+
+  Widget _buildPlaceholderLine({required double width, required double height}) {
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: Colors.white, // This must be a solid color for shimmer to work
+        borderRadius: BorderRadius.circular(8.r),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: EdgeInsets.only(bottom: AppSpacings.itemSpacing),
+      padding: EdgeInsets.all(AppSpacings.cardPadding),
+      decoration: BoxDecoration(
+        color: AppColors.card, // This is the background of the card itself
+        borderRadius: BorderRadius.circular(16.r),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildPlaceholderLine(width: double.infinity, height: 22.h),
+          SizedBox(height: 16.h),
+          _buildPlaceholderLine(width: 200.w, height: 16.h),
+          SizedBox(height: 8.h),
+          _buildPlaceholderLine(width: 150.w, height: 16.h),
+        ],
       ),
     );
   }

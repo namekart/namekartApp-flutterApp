@@ -32,64 +32,14 @@ class _HelpDeskState extends State<HelpDesk> {
         backgroundColor: Colors.white,
         titleSpacing: 0,
         title: text(
-            text: "HelpDesk",
+            text: "Quick Chat",
             size: 12.sp,
             color: Color(0xff717171),
             fontWeight: FontWeight.bold),
       ),
-      body: SingleChildScrollView(
-        child: Container(
-          child: Column(
-            children: [
-              Bounceable(
-                onTap: () async {
-                  _carouselCardsInfo("Found A Bug??",
-                      "How does that bug occured ...", "bug-reports");
-                },
-                child: _carouselCards(
-                    "Spotted something wrong?",
-                    "Tell us here!",
-                    "assets/images/home_screen_images/foundabug.png",
-                    Colors.white,
-                    Colors.black),
-              ),
-              Bounceable(
-                onTap: () {
-                  _carouselCardsInfo(
-                      "Have a Feature in Mind??",
-                      "Describe your feature idea in detail to help us understand and develop it easily...",
-                      "suggest-feature");
-                },
-                child: _carouselCards(
-                    "Have a Feature in Mind?",
-                    "Help Us Shape the App!",
-                    "assets/images/home_screen_images/haveafeatureinmind.png",
-                    Colors.white,
-                    Colors.black),
-              ),
-              Bounceable(
-                onTap: () {
-                  Navigator.push(context, PageRouteBuilder(
-                      pageBuilder: (context, animation, secondaryAnimation) {
-                    return UpdateVersion();
-                  }));
-                },
-                child: _carouselCards(
-                    "We’ve Upgraded!",
-                    "Find Out What’s Changed",
-                    "assets/images/home_screen_images/weupgraded.png",
-                    Colors.white,
-                    Colors.black),
-              ),
-              _carouselCards(
-                  "New Surprises Inside!",
-                  "Check Out What’s Happening",
-                  "assets/images/home_screen_images/newsurprise.png",
-                  Colors.white,
-                  Colors.black),
-            ],
-          ),
-        ),
+      body: Container(
+        alignment: Alignment.center,
+        child: Image.asset('assets/images/home_screen_images/chatscomingsoon.png',width: 300,height: 300,),
       ),
     );
   }

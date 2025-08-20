@@ -1,35 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bounceable/flutter_bounceable.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:namekart_app/activity_helpers/UIHelpers.dart';
-import 'dart:convert'; // Import for JSON encoding
-import 'package:google_fonts/google_fonts.dart'; // Import for Google Fonts
-
+import 'package:google_fonts/google_fonts.dart';
+import 'package:hive_flutter/adapters.dart';
+import 'package:namekart_app/screens/home_screen/tabs/profile_tab/options_tab/options_buttons/PersonalGroup/PersonalGroupTutorial.dart';
+import 'dart:convert';
 import '../../../../../../../activity_helpers/DbSqlHelper.dart';
+import '../../../../../../../activity_helpers/DbAccountHelper.dart';
+import '../../../../../../../activity_helpers/UIHelpers.dart';
 import '../../../../../../live_screens/live_details_screen.dart';
 import 'PersonalGroup.dart';
+import 'PersonalGroupDetails.dart';
 
-// Assuming CustomSnackBar is defined elsewhere or from the package
-// If not, you might need to adjust showTopSnackbar call or define CustomSnackBar.
-// For example:
-// class CustomSnackBar extends StatelessWidget {
-//   final String message;
-//   final Color backgroundColor;
-//
-//   const CustomSnackBar.info({Key? key, required this.message, this.backgroundColor = Colors.blue}) : super(key: key);
-//
-//   @override
-//   Widget build(BuildContext context) {
-//     return Card(
-//       color: backgroundColor,
-//       margin: EdgeInsets.symmetric(horizontal: 10.w, vertical: 5.h),
-//       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.w)),
-//       child: Padding(
-//         padding: EdgeInsets.all(12.w),
-//         child: Text(message, style: GoogleFonts.poppins(color: Colors.white)),
-//       ),
-//     );
-//   }
-// }
 
 class PersonalGroupDetails extends StatefulWidget {
   final GroupFilter groupFilter;
@@ -55,35 +37,7 @@ class _PersonalGroupDetailsState extends State<PersonalGroupDetails> {
     _applyFilter(widget.groupFilter);
   }
 
-  Future<void> _applyFilter(GroupFilter groupFilter) async {
-    setState(() {
-      _isLoading = true;
-      _filteredNotifications = [];
-    });
-
-    try {
-      final results = await DbSqlHelper.getFilteredNotifications(
-        condition: groupFilter.queryCondition,
-        orderBy: 'json_extract(json_data, "\$.datetime_id") DESC',
-      );
-
-      setState(() {
-        _filteredNotifications = results;
-      });
-    } catch (e) {
-      print("Error applying filter for group '${groupFilter.name}': $e");
-      // Updated showTopSnackbar for consistency
-      showTopSnackbar("Error applying filter: $e",
-          false, // Example custom color
-        );
-
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
-    }
-  }
-
+  // ADD THESE TWO METHODS HERE:
   String _getConditionDisplayText(FilterCondition condition) {
     switch (condition) {
       case FilterCondition.contains:
@@ -97,21 +51,78 @@ class _PersonalGroupDetailsState extends State<PersonalGroupDetails> {
       case FilterCondition.equalsCaseInsensitive:
         return "Equals (Case-Insensitive Text)";
       case FilterCondition.greaterThan:
-        return "Greater Than (Number)";
+        return "Greater Than (Number/Text)";
       case FilterCondition.lessThan:
-        return "Less Than (Number)";
+        return "Less Than (Number/Text)";
       case FilterCondition.regexMatches:
         return "RegEx Matches";
       case FilterCondition.isEmpty:
-        return "Is Empty";
+        return "Is Empty (Null or '')";
       case FilterCondition.isNotEmpty:
-        return "Is Not Empty";
+        return "Is Not Empty (Not Null and not '')";
       case FilterCondition.isNumber:
-        return "Is Number";
+        return "Is Number (e.g., Age, GDV, Bids)";
       case FilterCondition.isNotNumber:
-        return "Is Not Number";
-      default:
-        return "Unknown Condition";
+        return "Is Not Number (e.g., Domain, Status Text)";
+    }
+  }
+
+  String _getNumericOperatorDisplayText(NumericComparisonOperator operator) {
+    switch (operator) {
+      case NumericComparisonOperator.greaterThan:
+        return ">";
+      case NumericComparisonOperator.lessThan:
+        return "<";
+      case NumericComparisonOperator.equals:
+        return "=";
+      case NumericComparisonOperator.greaterThanOrEqual:
+        return ">=";
+      case NumericComparisonOperator.lessThanOrEqual:
+        return "<=";
+    }
+  }
+
+  Future<void> _applyFilter(GroupFilter groupFilter) async {
+    setState(() {
+      _isLoading = true;
+      _filteredNotifications = [];
+    });
+
+    try {
+      List<Map<dynamic, dynamic>> results;
+
+      if (groupFilter.queryCondition.isEmbeddedNumericSearch == true &&
+          groupFilter.queryCondition.categoryName != null &&
+          groupFilter.queryCondition.embeddedNumericOperator != null &&
+          groupFilter.queryCondition.embeddedNumericValue != null) {
+        // Call the new dedicated function for embedded numeric search
+        results = await DbSqlHelper.getFilteredNotificationsByEmbeddedNumericValue(
+          categoryName: groupFilter.queryCondition.categoryName!,
+          operator: groupFilter.queryCondition.embeddedNumericOperator!,
+          numericValue: groupFilter.queryCondition.embeddedNumericValue!,
+          orderBy: 'json_extract(json_data, "\$.datetime_id") DESC',
+        );
+      } else {
+        // Call the original function for all other types of filters
+        results = await DbSqlHelper.getFilteredNotifications(
+          condition: groupFilter.queryCondition,
+          orderBy: 'json_extract(json_data, "\$.datetime_id") DESC',
+        );
+      }
+
+      setState(() {
+        _filteredNotifications = results;
+      });
+    } catch (e) {
+      print("Error applying filter for group '${groupFilter.name}': $e");
+      showTopSnackbar(
+        "Error applying filter: $e",
+        false, // Example custom color
+      );
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
     }
   }
 
@@ -119,22 +130,20 @@ class _PersonalGroupDetailsState extends State<PersonalGroupDetails> {
   @override
   Widget build(BuildContext context) {
     final group = widget.groupFilter;
+    final qc = group.queryCondition;
 
-    bool conditionRequiresValue(FilterCondition? condition) {
-      return ![
-        FilterCondition.isEmpty,
-        FilterCondition.isNotEmpty,
-        FilterCondition.isNumber,
-        FilterCondition.isNotNumber,
-        null
-      ].contains(condition);
-    }
-
-    String displayJsonPath;
-    if (group.queryCondition.jsonPath == DbSqlHelper.anyFieldKeywordSearchKey) {
-      displayJsonPath = "Any Text Field (Broad Search)";
+    String displayFilterDescription;
+    if (qc.isEmbeddedNumericSearch == true &&
+        qc.categoryName != null &&
+        qc.embeddedNumericOperator != null &&
+        qc.embeddedNumericValue != null) {
+      displayFilterDescription =
+      "Searching for '${qc.categoryName}' ${_getNumericOperatorDisplayText(qc.embeddedNumericOperator!)} ${qc.embeddedNumericValue} in hX fields.";
+    } else if (qc.jsonPath == DbSqlHelper.anyFieldKeywordSearchKey) {
+      displayFilterDescription = "Broad Text Search for '${qc.value}'";
     } else {
-      displayJsonPath = group.queryCondition.jsonPath;
+      displayFilterDescription =
+      "Filtering by '${qc.jsonPath}' with condition '${_getConditionDisplayText(qc.condition)}' and value '${qc.value}'";
     }
 
     return Scaffold(
@@ -143,51 +152,65 @@ class _PersonalGroupDetailsState extends State<PersonalGroupDetails> {
         backgroundColor: const Color(0xffF7F7F7),
         surfaceTintColor: const Color(0xffF7F7F7),
         titleSpacing: 0,
-        title: Text( // Using Text directly for GoogleFonts
-            "Group Details: ${group.name}",
-            style: GoogleFonts.poppins(
-                fontSize: 12.sp,
-                color: const Color(0xff717171),
-                fontWeight: FontWeight.bold)),
+        title: Text(
+          "Group Details: ${group.name}",
+          style: GoogleFonts.poppins(
+            fontSize: 12.sp,
+            color: const Color(0xff717171),
+            fontWeight: FontWeight.bold,
+          ),
+        ),
       ),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
             padding: EdgeInsets.all(8.w),
-            child: text( // Using Text directly for GoogleFonts
-              text: "Filtered Notifications (${_filteredNotifications.length})",
-                size: 12.sp,
+            child: Text(
+              "Filter: $displayFilterDescription",
+              style: GoogleFonts.poppins(
+                fontSize: 10.sp,
+                color: Colors.black87,
+                fontWeight: FontWeight.normal,
+              ),
+            ),
+          ),
+          Padding(
+            padding: EdgeInsets.all(8.w),
+            child: Text(
+              "Filtered Notifications (${_filteredNotifications.length})",
+              style: GoogleFonts.poppins(
+                fontSize: 12.sp,
                 fontWeight: FontWeight.bold,
                 color: Colors.blue,
               ),
+            ),
           ),
-          // Filtered Notifications List
           _isLoading
               ? const Center(child: CircularProgressIndicator())
               : _filteredNotifications.isEmpty
               ? Padding(
             padding: EdgeInsets.all(16.w),
-            child: Text( // Using Text directly for GoogleFonts
-                "No notifications match this group filter.",
-                style: GoogleFonts.poppins(
-                    fontSize: 10.sp,
-                    color: Colors.grey,
-                    fontWeight: FontWeight.bold)),
+            child: Text(
+              "No notifications match this group filter.",
+              style: GoogleFonts.poppins(
+                fontSize: 10.sp,
+                color: Colors.grey,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           )
               : Expanded(
             child: ListView.builder(
               itemCount: _filteredNotifications.length,
               itemBuilder: (context, index) {
                 final notificationData = _filteredNotifications[index];
-                // Simulate ringStatus based on 'read' status
-                final bool ringStatus = notificationData['read'] == 0; // If unread, set to true
+                final bool ringStatus = notificationData['read'] == 0;
 
                 return GestureDetector(
-                  onTap: (){
-
+                  onTap: () {
                     String category = notificationData['path'].toString().split("~")[0];
-                    String subCategoryName= notificationData['path'].toString().split("~")[2];
+                    String subCategoryName = notificationData['path'].toString().split("~")[2];
                     Navigator.push(
                       context,
                       PageRouteBuilder(
@@ -205,14 +228,10 @@ class _PersonalGroupDetailsState extends State<PersonalGroupDetails> {
                                 ? "assets/images/home_screen_images/livelogos/$subCategoryName.png"
                                 : "assets/images/home_screen_images/appbar_images/notification.png",
                             scrollToDatetimeId: notificationData['datetime_id'],
-
                           );
                         },
                       ),
                     );
-
-
-
                   },
                   child: Padding(
                     padding: const EdgeInsets.all(8.0),
@@ -220,37 +239,39 @@ class _PersonalGroupDetailsState extends State<PersonalGroupDetails> {
                       color: Colors.white,
                       shape: RoundedRectangleBorder(
                         side: ringStatus
-                            ? BorderSide(
+                            ? const BorderSide(
                           color: Colors.redAccent,
                           width: 2,
                         )
-                            : BorderSide(
-                            color: Colors.transparent,
-                            width: 0),
+                            : const BorderSide(
+                          color: Colors.transparent,
+                          width: 0,
+                        ),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       margin: const EdgeInsets.only(top: 0),
                       child: Padding(
-                        padding: EdgeInsets.all(15),
+                        padding: const EdgeInsets.all(15),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                text( // Using Text directly for GoogleFonts
-                                  text:notificationData['data']?['h1'] ?? 'No Title',
-                                    size: 12.sp,
+                                Text(
+                                  notificationData['data']?['h1'] ?? 'No Title',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 12.sp,
                                     fontWeight: FontWeight.bold,
                                     color: Colors.black54,
+                                  ),
                                 ),
-                                // Conditional unread indicator based on `readStatus` (ringStatus)
-                                if (ringStatus) // If ringStatus is true (unread)
+                                if (ringStatus)
                                   Padding(
                                     padding: EdgeInsets.only(right: 18.w),
                                     child: Container(
                                       decoration: const BoxDecoration(
-                                        color: Color(0xff4CAF50), // Green dot for unread
+                                        color: Color(0xff4CAF50),
                                         shape: BoxShape.circle,
                                       ),
                                       padding: EdgeInsets.all(3.w),
@@ -259,60 +280,55 @@ class _PersonalGroupDetailsState extends State<PersonalGroupDetails> {
                               ],
                             ),
                             SizedBox(height: 5.h),
-                            // Data entries as bubble-like items (replicated from your example)
-                            // This part iterates through the 'data' field of the notification
                             if (notificationData.containsKey('data') && notificationData['data'] is Map)
                               Padding(
                                 padding: EdgeInsets.symmetric(vertical: 5.h),
                                 child: Wrap(
                                   spacing: 8.w,
                                   runSpacing: 8.h,
-                                  children: (notificationData['data'] as Map).entries
-                                      .where((entry) => entry.key != 'h1' && entry.value != null) // Exclude h1 and null values
+                                  children: (notificationData['data'] as Map)
+                                      .entries
+                                      .where((entry) => entry.key != 'h1' && entry.value != null)
                                       .map(
                                         (entry) => Container(
                                       padding: EdgeInsets.symmetric(vertical: 6.h, horizontal: 10.w),
                                       decoration: BoxDecoration(
                                         color: Colors.white,
                                         borderRadius: BorderRadius.circular(8),
-                                        boxShadow: [
+                                        boxShadow: const [
                                           BoxShadow(
-                                              color: Colors.black12,
-                                              blurRadius: 3,
-                                              blurStyle: BlurStyle.outer
+                                            color: Colors.black12,
+                                            blurRadius: 3,
+                                            blurStyle: BlurStyle.outer,
                                           ),
                                         ],
                                       ),
-                                      child: text( // Using Text directly for GoogleFonts
-                                          text:entry.value.toString().length > 50 ? entry.value.toString().substring(0, 50) + '...' : entry.value.toString(),
-                                          size: 8.sp,
+                                      child: Text(
+                                        entry.value.toString().length > 50 ? '${entry.value.toString().substring(0, 50)}...' : entry.value.toString(),
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 8.sp,
                                           color: const Color(0xff717171),
                                           fontWeight: FontWeight.bold,
+                                        ),
                                       ),
                                     ),
                                   )
                                       .toList(),
                                 ),
                               ),
-                            SizedBox(height: 10),
-                            // Compact datetime
+                            SizedBox(height: 10.h),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.end,
                               children: [
-                                text( // Using Text directly for GoogleFonts
-                                  text:"Time: ${notificationData['datetime_id'] ?? notificationData['datetime'] ?? 'N/A'}",
-                                    size: 8.sp,
+                                Text(
+                                  "Time: ${notificationData['datetime_id'] ?? notificationData['datetime'] ?? 'N/A'}",
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 8.sp,
                                     color: Colors.black54,
                                     fontWeight: FontWeight.bold,
+                                  ),
                                 ),
-                                SizedBox(width: 10.w), // Spacer
-                                // You can add the star/bookmark icon here if needed
-                                // For example:
-                                // Icon(
-                                //   notificationData['starred'] == 1 ? Icons.star : Icons.star_border,
-                                //   size: 16.sp,
-                                //   color: notificationData['starred'] == 1 ? Colors.amber : Colors.grey,
-                                // ),
+                                SizedBox(width: 10.w),
                               ],
                             ),
                           ],

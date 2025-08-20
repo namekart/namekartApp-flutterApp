@@ -696,4 +696,105 @@ class DbAccountHelper {
       return null; // Indicates a retrieval error
     }
   }
+
+
+  static Future<void> updateQuicknotes(
+      String accountPath, String userId, List<Map<String, dynamic>> quicknotes) async {
+    await _ensureTableExists();
+
+    const expectedAccountPathParts = ['account', 'user', 'details'];
+    final actualAccountPathParts =
+    accountPath.split('~').where((p) => p.isNotEmpty).toList();
+
+    if (actualAccountPathParts.length != expectedAccountPathParts.length ||
+        !listEquals(actualAccountPathParts, expectedAccountPathParts)) {
+      throw Exception(
+          'Invalid accountPath for updateQuicknotes. Expected "account~user~details".');
+    }
+
+    try {
+      Map<dynamic, dynamic>? accountData = await readData(accountPath, userId);
+      Map<String, dynamic> currentJsonData =
+      (accountData != null && accountData is Map<String, dynamic>)
+          ? accountData
+          : <String, dynamic>{};
+
+      if (quicknotes.isEmpty) {
+        // If the provided list is empty, remove the 'quicknote' field entirely
+        currentJsonData.remove('quicknote');
+        print("Removed 'quicknote' field as the provided list was empty for user: $userId");
+      } else {
+        // Otherwise, replace the 'quicknote' field with the new list
+        currentJsonData['quicknote'] = quicknotes;
+        print("Updated quicknotes list for user: $userId");
+      }
+
+      final Map<String, dynamic> row = {
+        _colUsername: userId,
+        _colJsonData: jsonEncode(currentJsonData),
+      };
+
+      await _db.insert(
+        _accountDetailsTable,
+        row,
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    } catch (e) {
+      print("Error updating quicknotes for user $userId: $e");
+      rethrow;
+    }
+  }
+
+// --- NEW: Get quicknote data ---
+  static Future<List<Map<String, dynamic>>?> getQuicknote(String accountPath,
+      String userId, {String? quicknoteCategory}) async {
+    await _ensureTableExists();
+
+    const expectedAccountPathParts = ['account', 'user', 'details'];
+    final actualAccountPathParts =
+    accountPath.split('~').where((p) => p.isNotEmpty).toList();
+
+    if (actualAccountPathParts.length != expectedAccountPathParts.length ||
+        !listEquals(actualAccountPathParts, expectedAccountPathParts)) {
+      throw Exception(
+          'Invalid accountPath for getQuicknote. Expected "account~user~details".');
+    }
+
+    try {
+      Map<dynamic, dynamic>? accountData = await readData(accountPath, userId);
+      Map<String, dynamic> currentJsonData =
+      (accountData != null && accountData is Map<String, dynamic>)
+          ? accountData
+          : <String, dynamic>{};
+
+      List<dynamic> quicknotesList = (currentJsonData['quicknote'] != null &&
+          currentJsonData['quicknote'] is List<dynamic>)
+          ? currentJsonData['quicknote'] as List<dynamic>
+          : <dynamic>[];
+
+      if (quicknoteCategory != null && quicknoteCategory.isNotEmpty) {
+        // Return only the list for the specified quicknoteCategory
+        for (final entry in quicknotesList) {
+          if (entry is Map<String, dynamic> &&
+              entry.containsKey(quicknoteCategory)) {
+            print(
+                "Retrieved quicknotes for category '$quicknoteCategory' for user: $userId");
+            return [entry]; // Return as a list containing just this map
+          }
+        }
+        print("No quicknotes found for category '$quicknoteCategory' for user: $userId.");
+        return []; // Return empty list if specific category not found
+      } else {
+        // Return the entire 'quicknote' list
+        final List<Map<String, dynamic>> allQuicknotes =
+        quicknotesList.whereType<Map<String, dynamic>>().toList();
+        print("Retrieved all quicknotes for user: $userId");
+        return allQuicknotes; // Returns the full quicknote list
+      }
+    } catch (e) {
+      print(
+          "Error getting quicknote data for user $userId, category $quicknoteCategory: $e");
+      return null; // Indicates a retrieval error
+    }
+  }
 }

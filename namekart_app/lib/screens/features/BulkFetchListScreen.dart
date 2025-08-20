@@ -1,11 +1,13 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
+import 'package:flutter_bounceable/flutter_bounceable.dart';
 import '../../storageClasses/Auctions.dart';
 
 class BulkFetchListScreen extends StatefulWidget {
   final List<Auctions> auctions;
 
-  BulkFetchListScreen({required this.auctions});
+  const BulkFetchListScreen({super.key, required this.auctions});
 
   @override
   State<BulkFetchListScreen> createState() => _BulkFetchListScreenState();
@@ -15,36 +17,31 @@ class _BulkFetchListScreenState extends State<BulkFetchListScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      // ♻️ REFACTORED AppBar for a cleaner, modern look
       appBar: AppBar(
-        title: Text(
-          "Bulk Fetch List",
-          style: TextStyle(
-            fontSize: 24,
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        iconTheme: IconThemeData(color: Colors.white),
-        flexibleSpace: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Colors.deepPurpleAccent, Colors.indigoAccent],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-        ),
+        title: const Text("Bulk Fetch Results"),
+        surfaceTintColor: Colors.white, // Prevents tinting on scroll
+        backgroundColor: Colors.white,
+        scrolledUnderElevation: 0.5, // Adds a subtle shadow on scroll
       ),
-      backgroundColor: Colors.white, // Clean, neutral background
-      body: Container(
-        padding: EdgeInsets.all(16),
+      backgroundColor: Colors.white,
+      body: AnimationLimiter( // ✨ NEW: Wrapper for list animations
         child: ListView.builder(
+          padding: const EdgeInsets.all(16),
           itemCount: widget.auctions.length,
           itemBuilder: (context, index) {
             final auction = widget.auctions[index];
-            return AuctionCard(auction: auction);
+            // ✨ NEW: Applying animations to each list item
+            return AnimationConfiguration.staggeredList(
+              position: index,
+              duration: const Duration(milliseconds: 400),
+              child: SlideAnimation(
+                verticalOffset: 50.0,
+                child: FadeInAnimation(
+                  child: AuctionCard(auction: auction),
+                ),
+              ),
+            );
           },
         ),
       ),
@@ -52,85 +49,140 @@ class _BulkFetchListScreenState extends State<BulkFetchListScreen> {
   }
 }
 
+// ♻️ REFACTORED AuctionCard with a completely new, modern design
 class AuctionCard extends StatelessWidget {
   final Auctions auction;
 
-  AuctionCard({required this.auction});
+  const AuctionCard({super.key, required this.auction});
 
   @override
   Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Card(
-      margin: EdgeInsets.symmetric(vertical: 12),
-      elevation: 5,
+      margin: const EdgeInsets.symmetric(vertical: 12),
+      elevation: 0, // Using border instead of heavy shadow for a cleaner look
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: Colors.grey.shade200), // Subtle border
       ),
-      color: Colors.white,
-      shadowColor: Colors.black.withOpacity(0.15),
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Domain Name
-            Text(
-              auction.domain ?? "No Domain",
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.w700,
-                color: Colors.black87,
-              ),
-            ),
-            SizedBox(height: 8),
-            Divider(color: Colors.grey[300], thickness: 1),
-            SizedBox(height: 8),
-
-            // Auction details row by row
-            _buildDetailRow("Base Price", "\$${auction.renewalPrice ?? 'N/A'}"),
-            _buildDetailRow("Current Bid", "\$${auction.currentBidPrice ?? 'N/A'}"),
-            _buildDetailRow("Max Bid", "\$${auction.maxBidPrice ?? 'N/A'}"),
-            _buildDetailRow("Registrar", auction.platform ?? "N/A"),
-            _buildDetailRow("Age", "${auction.age ?? 0} years"),
-            _buildDetailRow("Time Left", auction.timeLeft ?? "N/A"),
-            _buildDetailRow(
-              "Status",
-              auction.auctionType ?? "N/A",
-              valueColor: auction.auctionType == "active" ? Colors.green : Colors.red,
-            ),
-            SizedBox(height: 12),
-            Divider(color: Colors.grey[300], thickness: 1),
-            SizedBox(height: 12),
-
-            // Auction Stats (Bids, Bidders, Est. Value)
+            // --- Top Section: Domain and Main Price ---
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildStat("Bids", auction.bids?.toString() ?? "0"),
-                _buildStat("Bidders", auction.bidders?.toString() ?? "0"),
-                _buildStat("Est. Value", "\$${auction.est ?? 'N/A'}"),
+                // Domain Name
+                Expanded(
+                  child: Text(
+                    auction.domain ?? "No Domain",
+                    style: textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                // Current Bid
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      "\$${auction.currentBidPrice ?? '0'}",
+                      style: textTheme.headlineSmall?.copyWith(
+                        color: colorScheme.primary,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      "Current Bid",
+                      style: textTheme.bodySmall?.copyWith(color: Colors.grey.shade600),
+                    ),
+                  ],
+                ),
               ],
             ),
-            SizedBox(height: 20),
+            const SizedBox(height: 16),
 
-            // "View Details" button with gradient
-            ElevatedButton(
-              onPressed: () {
+            // --- Middle Section: Info Tags ---
+            Wrap(
+              spacing: 8.0,
+              runSpacing: 8.0,
+              children: [
+                _buildInfoTag(
+                  icon: CupertinoIcons.time,
+                  text: auction.timeLeft ?? "N/A",
+                ),
+                _buildInfoTag(
+                  icon: CupertinoIcons.tag,
+                  text: auction.platform ?? "N/A",
+                ),
+                _buildInfoTag(
+                  icon: CupertinoIcons.flame,
+                  text: auction.auctionType ?? "N/A",
+                  backgroundColor: (auction.auctionType?.toLowerCase() == "active" || auction.auctionType?.toLowerCase() == "buy now")
+                      ? Colors.green.shade50
+                      : Colors.red.shade50,
+                  iconColor: (auction.auctionType?.toLowerCase() == "active" || auction.auctionType?.toLowerCase() == "buy now")
+                      ? Colors.green.shade700
+                      : Colors.red.shade700,
+                ),
+                _buildInfoTag(
+                  icon: CupertinoIcons.calendar,
+                  text: "${auction.age ?? 0} yrs old",
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            const Divider(color: Colors.black12),
+            const SizedBox(height: 20),
+
+            // --- Bottom Section: Stats & Button ---
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _buildStat(
+                  icon: CupertinoIcons.decrease_indent,
+                  label: "Bids",
+                  value: auction.bids?.toString() ?? "0",
+                  textTheme: textTheme,
+                ),
+                _buildStat(
+                  icon: CupertinoIcons.person_2,
+                  label: "Bidders",
+                  value: auction.bidders?.toString() ?? "0",
+                  textTheme: textTheme,
+                ),
+                _buildStat(
+                  icon: CupertinoIcons.graph_square,
+                  label: "Est. Value",
+                  value: "\$${auction.est ?? 'N/A'}",
+                  textTheme: textTheme,
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            Bounceable( // ✨ NEW: Interactive bounce effect for the button
+              onTap: () {
                 // Action for viewing auction details
               },
-              style: ElevatedButton.styleFrom(
-                padding: EdgeInsets.symmetric(vertical: 16, horizontal: 40), backgroundColor: Colors.deepPurpleAccent,
-                shape: RoundedRectangleBorder(
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                decoration: BoxDecoration(
+                  color: colorScheme.primary.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                shadowColor: Colors.deepPurpleAccent.withOpacity(0.5),
-                elevation: 8,
-              ),
-              child: Text(
-                'View Details',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
+                child: Center(
+                  child: Text(
+                    'View Details',
+                    style: textTheme.bodyLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: colorScheme.primary,
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -140,42 +192,56 @@ class AuctionCard extends StatelessWidget {
     );
   }
 
-  // Row widget for auction details display
-  Widget _buildDetailRow(String label, String value, {Color? valueColor}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
+  // ✨ NEW: Helper widget for creating modern info tags
+  Widget _buildInfoTag({
+    required IconData icon,
+    required String text,
+    Color? backgroundColor,
+    Color? iconColor,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: backgroundColor ?? Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(20),
+      ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        mainAxisSize: MainAxisSize.min,
         children: [
+          Icon(icon, size: 14, color: iconColor ?? Colors.grey.shade700),
+          const SizedBox(width: 6),
           Text(
-            label,
-            style: TextStyle(fontSize: 16, color: Colors.black54),
-          ),
-          Text(
-            value,
-            style: TextStyle(fontSize: 16, color: valueColor ?? Colors.black87),
+            text,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: iconColor ?? Colors.grey.shade800,
+            ),
           ),
         ],
       ),
     );
   }
 
-  // Stats display like Bids, Bidders, Estimated Value
-  Widget _buildStat(String label, String value) {
+  // ♻️ REFACTORED: Stats display with added icons
+  Widget _buildStat({
+    required IconData icon,
+    required String label,
+    required String value,
+    required TextTheme textTheme,
+  }) {
     return Column(
       children: [
+        Icon(icon, color: Colors.grey.shade600, size: 24),
+        const SizedBox(height: 8),
         Text(
           value,
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
-            color: Colors.black87,
-          ),
+          style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
         ),
-        SizedBox(height: 4),
+        const SizedBox(height: 2),
         Text(
           label,
-          style: TextStyle(fontSize: 12, color: Colors.black54),
+          style: textTheme.bodySmall?.copyWith(color: Colors.grey.shade600),
         ),
       ],
     );

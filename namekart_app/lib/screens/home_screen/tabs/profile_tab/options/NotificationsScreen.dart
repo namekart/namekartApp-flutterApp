@@ -11,6 +11,8 @@ import '../../../../../activity_helpers/UIHelpers.dart';
 
 
 class NotificationsScreen extends StatefulWidget {
+  const NotificationsScreen({super.key});
+
   @override
   State<NotificationsScreen> createState() => _NotificationsScreenState();
 }
@@ -18,381 +20,334 @@ class NotificationsScreen extends StatefulWidget {
 class _NotificationsScreenState extends State<NotificationsScreen> {
   Map<String, Map<String, List<String>>> _displayNotificationsMap = {};
   late Set<String> _mutedItems;
-  late Set<String> _initialMutedItems; // To store the state when the screen loads
-  bool _isLoading = true; // Loading state
-
-  /// Helper to generate full path key for notification channels
-  String buildNotificationPath(String main, String sub, String leaf) => "$main~$sub~$leaf";
-
+  late Set<String> _initialMutedItems;
+  bool _isLoading = true; // For initial loading
+  bool _isSaving = false; // For save button state
 
   @override
   void initState() {
     super.initState();
-    _mutedItems = {}; // Initialize as empty
-    _initialMutedItems = {}; // Initialize as empty
+    _mutedItems = {};
+    _initialMutedItems = {};
     _loadNotificationSettings();
   }
 
+  // --- All your data loading and mapping logic remains unchanged ---
   Future<void> _loadNotificationSettings() async {
     try {
-      _isLoading = true; // Start loading
+      if (!mounted) return;
+      setState(() => _isLoading = true);
 
-      // 1. Get all available notification paths from DbSqlHelper
-      final List<String> allAvailablePaths = await DbSqlHelper.getAllAvailablePaths(maxDepth: 3);
-      print("All available paths from DbSqlHelper: $allAvailablePaths");
+      final List<String> allAvailablePaths =
+      await DbSqlHelper.getAllAvailablePaths(maxDepth: 3);
+      final List<String> notificationPaths =
+      allAvailablePaths.where((path) => path.startsWith("notifications~")).toList();
 
-      // Filter to only include paths that start with "notifications~"
-      final List<String> notificationPaths = allAvailablePaths
-          .where((path) => path.startsWith("notifications~"))
-          .toList();
-
-      // Build the _displayNotificationsMap from these paths
       _displayNotificationsMap = _groupPathsIntoMap(notificationPaths);
-      print("Display Notifications Map: $_displayNotificationsMap");
 
-
-      // 2. Load user's saved muted items from DbAccountHelper
-      Map<dynamic, dynamic>? accountData = await DbAccountHelper.readData("account~user~details", GlobalProviders.userId);
+      Map<dynamic, dynamic>? accountData =
+      await DbAccountHelper.readData("account~user~details", GlobalProviders.userId);
 
       if (accountData != null &&
-          accountData.containsKey('notifications') &&
           accountData['notifications'] is Map &&
-          accountData['notifications'].containsKey('muted') &&
           accountData['notifications']['muted'] is List) {
         _mutedItems = Set<String>.from(accountData['notifications']['muted']);
-        print("Loaded muted items: $_mutedItems");
       } else {
-        _mutedItems = {}; // No muted items found, default to empty
-        print("No muted items found in user data.");
+        _mutedItems = {};
       }
 
-      // Store the initial state of muted items
       _initialMutedItems = Set<String>.from(_mutedItems);
-
     } catch (e) {
       print("Error loading notification settings: $e");
-      // Handle error gracefully, e.g., show a message to the user
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error loading settings: ${e.toString()}")),
+        );
+      }
     } finally {
-      setState(() {
-        _isLoading = false; // End loading
-      });
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
-  // Helper function to group flat paths into the desired nested map structure
   Map<String, Map<String, List<String>>> _groupPathsIntoMap(List<String> paths) {
     final Map<String, Map<String, List<String>>> groupedMap = {};
-
     for (String fullPath in paths) {
       final parts = fullPath.split('~');
-      // Ensure the path starts with "notifications" and has at least two parts after it
       if (parts.length >= 3 && parts[0] == "notifications") {
-        final mainCategory = parts[1]; // e.g., "AMP-LIVE", "namekart"
-        final subKeyOrLeaf = parts[2]; // Can be the sub-category or the leaf itself
-
+        final mainCategory = parts[1];
+        final subKeyOrLeaf = parts[2];
         if (parts.length == 3) {
-          // Path is like "notifications~mainCategory~leafID"
-          // We'll put these under a "default" sub-category for display purposes
-          if (!groupedMap.containsKey(mainCategory)) {
-            groupedMap[mainCategory] = {};
-          }
-          if (!groupedMap[mainCategory]!.containsKey("default")) {
-            groupedMap[mainCategory]!["default"] = [];
-          }
-          if (!groupedMap[mainCategory]!["default"]!.contains(subKeyOrLeaf)) {
-            groupedMap[mainCategory]!["default"]!.add(subKeyOrLeaf);
-          }
+          groupedMap.putIfAbsent(mainCategory, () => {});
+          groupedMap[mainCategory]!.putIfAbsent("default", () => []).add(subKeyOrLeaf);
         } else {
-          // Path is like "notifications~mainCategory~subCategory~leafID"
           final subCategory = subKeyOrLeaf;
-          final leaf = parts.sublist(3).join('~'); // Join remaining parts if leaf itself contains '~'
-          if (!groupedMap.containsKey(mainCategory)) {
-            groupedMap[mainCategory] = {};
-          }
-          if (!groupedMap[mainCategory]!.containsKey(subCategory)) {
-            groupedMap[mainCategory]![subCategory] = [];
-          }
-          if (!groupedMap[mainCategory]![subCategory]!.contains(leaf)) {
-            groupedMap[mainCategory]![subCategory]!.add(leaf);
-          }
+          final leaf = parts.sublist(3).join('~');
+          groupedMap.putIfAbsent(mainCategory, () => {});
+          groupedMap[mainCategory]!.putIfAbsent(subCategory, () => []).add(leaf);
         }
       }
     }
     return groupedMap;
   }
+  // --- End of data logic ---
 
+  Future<void> _saveSettings() async {
+    if (_isSaving) return;
+
+    setState(() => _isSaving = true);
+
+    try {
+      final Set<String> currentMutedItems = Set<String>.from(_mutedItems);
+      final Set<String> allNotificationPaths = (await DbSqlHelper.getAllAvailablePaths(maxDepth: 3))
+          .where((path) => path.startsWith("notifications~"))
+          .toSet();
+
+      final Set<String> currentActiveItems = allNotificationPaths.difference(currentMutedItems);
+      final Set<String> topicsBecomingMuted = currentMutedItems.difference(_initialMutedItems);
+      final Set<String> topicsBecomingActive = _initialMutedItems.difference(currentMutedItems);
+
+      final fcmHelper = FCMHelper();
+      await Future.wait([
+        ...topicsBecomingMuted.map((topic) => fcmHelper.unsubscribeFromTopic(topic)),
+        ...topicsBecomingActive.map((topic) => fcmHelper.subscribeToTopic(topic)),
+      ]);
+
+      Map<dynamic, dynamic>? accountData = await DbAccountHelper.readData("account~user~details", GlobalProviders.userId);
+      accountData ??= <String, dynamic>{};
+      accountData['notifications'] = {
+        'muted': currentMutedItems.toList(),
+        'active': currentActiveItems.toList(),
+      };
+
+      await DbAccountHelper.addData("account~user~details", GlobalProviders.userId, accountData);
+
+      _initialMutedItems = Set<String>.from(currentMutedItems);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              backgroundColor: Colors.green,
+              content: Text("Notification Settings Saved Successfully")),
+        );
+      }
+    } catch (e) {
+      print("Error saving notification settings: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              backgroundColor: Colors.red,
+              content: Text("Error saving settings: ${e.toString()}")),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return Scaffold(
-        appBar: AppBar(
-          elevation: 10,
-          backgroundColor: const Color(0xffF7F7F7),
-          foregroundColor: const Color(0xffF7F7F7),
-          surfaceTintColor:const Color(0xffF7F7F7) ,
-          iconTheme: const IconThemeData(color: Color(0xff3F3F41), size: 15),
-          title: Row(
-            children: [
-              text(
-                  text: "Notifications",
-                  fontWeight: FontWeight.w300,
-                  size: 12.sp,
-                  color: const Color(0xff3F3F41)),
-            ],
-          ),
-          titleSpacing: 0,
-        ),
-        body: const Center(child: CircularProgressIndicator()),
-      );
-    }
-
     return Scaffold(
-      backgroundColor: Colors.white,
-        appBar: AppBar(
-          elevation: 5,
-          backgroundColor: const Color(0xffffffff),
-          shadowColor: Colors.black12,
-          surfaceTintColor:const Color(0xffffffff) ,
-          iconTheme: const IconThemeData(color: Color(0xff3F3F41), size: 15),
-          actions: [
-            Container(
-              width: 2,
-              height: 25.sp,
-              color: Colors.black12,
-            ),
-            IconButton(
-              onPressed: () {},
-              icon: Icon(
-                Icons.notifications,
-                size: 15.sp,
-              ),
-            )
-          ],
-          title: Row(
-            children: [
-              text(
-                  text: "Notifications",
-                  fontWeight: FontWeight.w300,
-                  size: 12.sp,
-                  color: const Color(0xff3F3F41)),
-            ],
-          ),
-          titleSpacing: 0,
+      backgroundColor: const Color(0xffF8F9FA), // A slightly off-white background
+      appBar: AppBar(
+        iconTheme: const IconThemeData(color: Colors.black87),
+        title: text(
+          text: "Notifications",
+          fontWeight: FontWeight.w600,
+          size: 18,
+          color: Colors.black87
         ),
-        body: Column(
-          children: [
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.all(8),
-                children: _displayNotificationsMap.entries.map((mainEntry) {
-                  final mainKey = mainEntry.key; // e.g., "AMP-LIVE", "namekart"
-                  final subMap = mainEntry.value; // Map<String, List<String>>
+        backgroundColor: Colors.white,
+        elevation: 0,
+        scrolledUnderElevation: 1,
+        shadowColor: Colors.black26,
+        centerTitle: true,
+      ),
+      body: _isLoading
+          ? const Center(child: CupertinoActivityIndicator(radius: 15))
+          : Column(
+        children: [
+          Expanded(
+            child: ListView.builder(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0),
+              itemCount: _displayNotificationsMap.keys.length,
+              itemBuilder: (context, index) {
+                final mainKey = _displayNotificationsMap.keys.elementAt(index);
+                final subMap = _displayNotificationsMap[mainKey]!;
 
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Main title
-                      Padding(
-                        padding: const EdgeInsets.only(left: 8.0, top: 10),
-                        child: text(
-                          text: mainKey,
-                          fontWeight: FontWeight.w400,
-                          size: 12.sp,
-                          color: const Color(0xff717171),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-
-                      ...subMap.entries.map((subEntry) {
-                        final subKey = subEntry.key; // e.g., "Live-DC", "Ankur" or "default"
-                        final leafList = subEntry.value; // List of notification IDs/topics
-
-                        return Padding(
-                          padding: const EdgeInsets.all(8),
-                          child: Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // Subcategory (display only if not "default")
-                                if (subKey != "default")
-                                  text(
-                                    text: subKey,
-                                    fontWeight: FontWeight.w300,
-                                    size: 10.sp,
-                                    color: const Color(0xff3F3F41),
-                                  ),
-                                if (subKey != "default")
-                                  const SizedBox(height: 10),
-
-                                // Scrollable list of leaves (notification IDs/topics)
-                                SingleChildScrollView(
-                                  scrollDirection: Axis.horizontal,
-                                  child: Row(
-                                    children: leafList.map((leaf) {
-                                      // Construct the full path for FCM topic subscription/unsubscription
-                                      String path;
-                                      if (subKey == "default") {
-                                        // Path was originally "notifications~mainCategory~leaf"
-                                        path = "notifications~${mainKey}~${leaf}";
-                                      } else {
-                                        // Path was originally "notifications~mainCategory~subCategory~leaf"
-                                        path = "notifications~${mainKey}~${subKey}~${leaf}";
-                                      }
-
-                                      final isMuted = _mutedItems.contains(path);
-
-                                      return GestureDetector(
-                                        onTap: () {
-                                          setState(() {
-                                            if (isMuted) {
-                                              _mutedItems.remove(path);
-                                            } else {
-                                              _mutedItems.add(path);
-                                            }
-                                          });
-                                        },
-                                        child: Container(
-                                          margin:
-                                          const EdgeInsets.only(right: 8),
-                                          padding: const EdgeInsets.symmetric(
-                                              vertical: 6, horizontal: 10),
-                                          decoration: BoxDecoration(
-                                            color: isMuted
-                                                ? Colors.white
-                                                : Colors.white,
-                                            borderRadius:
-                                            BorderRadius.circular(8),
-                                            border: Border.all(
-                                              color: Colors.black12,
-                                              width: 1,
-                                            ),
-                                          ),
-                                          child: Row(
-                                            children: [
-                                              text(
-                                                text: leaf,
-                                                fontWeight: FontWeight.w400,
-                                                size: 10.sp,
-                                                color: const Color(0xff3F3F41),
-                                              ),
-                                              const SizedBox(width: 6),
-                                              Icon(
-                                                isMuted
-                                                    ? Icons.notifications_off
-                                                    : Icons.notifications,
-                                                size: 16,
-                                                color: isMuted
-                                                    ? Colors.red
-                                                    : Colors.black26,
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      );
-                                    }).toList(),
-                                  ),
-                                ),
-                                const SizedBox(height: 12),
-                              ],
-                            ),
-                          ),
-                        );
-                      }).toList(),
-
-                    ],
-                  );
-                }).toList(),
-              ),
-            ),
-
-            // Save Settings button
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () async {
-                    if (_isLoading) return; // Prevent double-tap while loading
-
+                return _NotificationCategoryCard(
+                  mainCategory: mainKey,
+                  subCategoryMap: subMap,
+                  mutedItems: _mutedItems,
+                  onToggle: (path, isMuted) {
                     setState(() {
-                      _isLoading = true; // Show loading indicator while saving
+                      if (isMuted) {
+                        _mutedItems.add(path);
+                      } else {
+                        _mutedItems.remove(path);
+                      }
                     });
-
-                    try {
-                      // Get the current state of muted items from the UI
-                      final Set<String> currentMutedItems = Set<String>.from(_mutedItems);
-                      final Set<String> currentActiveItems = (await DbSqlHelper.getAllAvailablePaths(maxDepth: 3))
-                          .where((path) => path.startsWith("notifications~"))
-                          .toSet()
-                          .difference(currentMutedItems);
-
-                      final Set<String> topicsBecomingMuted = currentMutedItems.difference(_initialMutedItems);
-
-// Calculate topics that moved from MUTED to ACTIVE -> SUBSCRIBE these
-                      final Set<String> topicsBecomingActive = _initialMutedItems.difference(currentMutedItems);
-
-                      print("Topics becoming Muted (Unsubscribe): $topicsBecomingMuted");
-                      for (String topic in topicsBecomingMuted) {
-                        await FCMHelper().unsubscribeFromTopic(topic);
-                        print("Unsubscribed from FCM topic: $topic");
-                      }
-
-                      print("Topics becoming Active (Subscribe): $topicsBecomingActive");
-                      for (String topic in topicsBecomingActive) {
-                        await FCMHelper().subscribeToTopic(topic);
-                        print("Subscribed to FCM topic: $topic");
-                      }
-
-                      // Update the 'muted' and 'active' lists in the user's main JSON data in DbAccountHelper
-                      Map<dynamic, dynamic>? accountData = await DbAccountHelper.readData("account~user~details", GlobalProviders.userId);
-                      accountData ??= <String, dynamic>{};
-
-                      Map<String, dynamic> notificationsSection = (accountData['notifications'] != null && accountData['notifications'] is Map<String, dynamic>)
-                          ? accountData['notifications'] as Map<String, dynamic>
-                          : <String, dynamic>{};
-
-                      notificationsSection['muted'] = currentMutedItems.toList();
-                      notificationsSection['active'] = currentActiveItems.toList();
-
-                      accountData['notifications'] = notificationsSection;
-
-                      await DbAccountHelper.addData("account~user~details", GlobalProviders.userId, accountData);
-
-                      // After saving, update _initialMutedItems to reflect the new saved state
-                      _initialMutedItems = Set<String>.from(currentMutedItems);
-
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text("Notification Settings Saved")),
-                      );
-                    } catch (e) {
-                      print("Error saving notification settings: $e");
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text("Error saving settings: ${e.toString()}")),
-                      );
-                    } finally {
-                      setState(() {
-                        _isLoading = false; // Stop loading
-                      });
-                    }
                   },
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    backgroundColor: Colors.black,
-                  ),
-                  child: const Text(
-                    "Save Settings",
-                    style: TextStyle(color: Colors.white),
+                );
+              },
+            ),
+          ),
+          // --- Save Button Area ---
+          Container(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+            color: Colors.white,
+            child: SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _saveSettings,
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  backgroundColor: Colors.black,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
                 ),
+                child: _isSaving
+                    ? const CupertinoActivityIndicator(color: Colors.white)
+                    : text(
+                    text: "Save Settings",
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                    size: 15),
               ),
             ),
-          ],
-        ));
+          ),
+        ],
+      ),
+    );
   }
 }
+
+/// A reusable widget for displaying a main notification category.
+class _NotificationCategoryCard extends StatelessWidget {
+  final String mainCategory;
+  final Map<String, List<String>> subCategoryMap;
+  final Set<String> mutedItems;
+  final Function(String, bool) onToggle;
+
+  const _NotificationCategoryCard({
+    required this.mainCategory,
+    required this.subCategoryMap,
+    required this.mutedItems,
+    required this.onToggle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 20.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(left: 4.0, bottom: 8.0),
+            child: text(
+              text: mainCategory,
+              size: 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.black,
+            ),
+          ),
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              children: subCategoryMap.entries.map((subEntry) {
+                final subKey = subEntry.key;
+                final leafList = subEntry.value;
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (subKey != "default")
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                        child: text(
+                          text: subKey,
+                          size: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey.shade700,
+                        ),
+                      ),
+                    ...List.generate(leafList.length, (index) {
+                      final leaf = leafList[index];
+                      final path = "notifications~$mainCategory${subKey == 'default' ? '' : '~$subKey'}~$leaf";
+                      final isMuted = mutedItems.contains(path);
+
+                      return _NotificationRow(
+                        title: leaf,
+                        isMuted: isMuted,
+                        onToggle: (shouldMute) => onToggle(path, shouldMute),
+                        isLast: index == leafList.length - 1,
+                      );
+                    }),
+                  ],
+                );
+              }).toList(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A reusable widget for an individual notification toggle row.
+class _NotificationRow extends StatelessWidget {
+  final String title;
+  final bool isMuted;
+  final ValueChanged<bool> onToggle;
+  final bool isLast;
+
+  const _NotificationRow({
+    required this.title,
+    required this.isMuted,
+    required this.onToggle,
+    this.isLast = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        border: isLast ? null : Border(bottom: BorderSide(color: Colors.grey.shade200)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Expanded(
+            child: text(
+              text: title.replaceAll('-', ' '), // Make titles more readable
+              size: 15,
+              fontWeight: FontWeight.w400,
+              color: Colors.black87,
+            ),
+          ),
+          CupertinoSwitch(
+            value: !isMuted, // Switch is "on" when not muted
+            onChanged: (value) => onToggle(!value), // onToggle expects "shouldMute"
+            activeColor: Colors.blue,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+
+
+
+
+

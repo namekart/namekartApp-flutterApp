@@ -18,7 +18,7 @@ import '../../activity_helpers/GlobalFunctions.dart';
 import '../../activity_helpers/GlobalVariables.dart';
 import '../../change_notifiers/AllDatabaseChangeNotifiers.dart';
 import '../../change_notifiers/WebSocketService.dart';
-import '../../cutsom_widget/customSyncWidget.dart';
+import '../../custom_widget/customSyncWidget.dart';
 import '../info_screens/HelpDesk.dart';
 import 'StarsScreen.dart';
 
@@ -76,10 +76,6 @@ class _HomeScreenState extends State<HomeScreen> {
       Provider.of<SnackBarFailedNotifier>(context, listen: false),
       Provider.of<ShowDialogNotifier>(context, listen: false),
     );
-
-    WebSocketService().sendMessage({
-      "query": "firebase-all_collection_info",
-    });
   }
 
   Future<void> getHomeScreenAndChannelReadCount() async {

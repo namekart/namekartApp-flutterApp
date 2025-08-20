@@ -18,7 +18,7 @@ import 'package:provider/provider.dart';
 
 import 'activity_helpers/DbSqlHelper.dart';
 import 'change_notifiers/WebSocketService.dart';
-import 'cutsom_widget/customSyncWidget.dart';
+import 'custom_widget/customSyncWidget.dart';
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 

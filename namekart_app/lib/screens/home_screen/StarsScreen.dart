@@ -8,8 +8,9 @@ import 'package:namekart_app/activity_helpers/UIHelpers.dart';
 import 'package:text_scroll/text_scroll.dart';
 
 import '../../activity_helpers/GlobalFunctions.dart';
-import '../../cutsom_widget/_HashtagInputWidgetState.dart';
+import '../../custom_widget/_HashtagInputWidgetState.dart';
 import '../live_screens/live_details_screen.dart';
+import '../search_screen/SearchScreen.dart';
 
 class StarsScreen extends StatefulWidget {
   @override
@@ -78,8 +79,8 @@ class _StarsScreenState extends State<StarsScreen> {
           surfaceTintColor: Colors.white,
           elevation: 1,
           shadowColor: Colors.black,
-          title: text(text: "Paths & IDs",color: Color(0xff1e1e1e),fontWeight: FontWeight.bold,size: 12.sp),
-          iconTheme: IconThemeData(size: 17),
+          title: text(text: "Stars",color: Color(0xff717171),fontWeight: FontWeight.bold,size: 12.sp),
+          iconTheme: IconThemeData(size: 17,color: Color(0xff717171)),
           titleSpacing: 0,
           bottom: TabBar(
             isScrollable: true,
@@ -180,6 +181,7 @@ class _StarsScreenState extends State<StarsScreen> {
             )
                 : ListView.builder(
               itemCount: itemsToDisplay.length,
+              padding: EdgeInsets.all(0),
               itemBuilder: (context, index) {
                 final itemData = itemsToDisplay[index];
                 final String itemId = itemData['id']!;
@@ -247,549 +249,37 @@ class _StarsScreenState extends State<StarsScreen> {
 
                       return ListTile(
                         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        title: currentTabPath == "All" ? TextScroll(
-                          "$originalPath $itemId",
-                          velocity: Velocity(pixelsPerSecond: Offset(20, 10)),
-                          mode: TextScrollMode.bouncing,
-                          pauseBetween: Duration(seconds: 3),
-                          style: TextStyle(color: Color(0xff717171),fontSize: 10.sp,fontWeight: FontWeight.bold),) : null, // Show path only in "All" tab
+                        title: currentTabPath == "All" ? Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: TextScroll(
+                            "$originalPath~$itemId",
+                            velocity: Velocity(pixelsPerSecond: Offset(20, 10)),
+                            mode: TextScrollMode.bouncing,
+                            pauseBetween: Duration(seconds: 3),
+                            style: TextStyle(color: Color(0xff717171),fontSize: 8.sp,fontWeight: FontWeight.bold),),
+                        ) : null, // Show path only in "All" tab
                         subtitle:Column(
                           children: [
-                            SizedBox(
-                              height: 10,
-                            ),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                if (showHeader)
-                                  Row(
-                                    crossAxisAlignment:
-                                    CrossAxisAlignment.center,
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Container(
-                                        margin:
-                                        EdgeInsets.symmetric(vertical: 8),
-                                        padding: EdgeInsets.symmetric(
-                                            horizontal: 12, vertical: 6),
-                                        child: text(
-                                          text: date,
-                                          color: Colors.black54,
-                                          size: 9,
-                                          fontWeight: FontWeight.w300,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                if (ringStatus)
-                                  Padding(
-                                    padding:
-                                    const EdgeInsets.only(right: 18.0),
-                                    child: Container(
-                                      width: 110.sp,
-                                      decoration: BoxDecoration(
-                                          color: Color(0xff3DB070),
-                                          borderRadius:
-                                          BorderRadius.circular(15),
-                                          border: Border.all(
-                                              color: Colors.white, width: 1)),
-                                      padding: EdgeInsets.all(10),
-                                      child: Row(
-                                        mainAxisAlignment:
-                                        MainAxisAlignment.center,
-                                        children: [
-                                          Text(
-                                            "Acknowledge",
-                                            style: GoogleFonts.poppins(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 8.sp,
-                                              color: Colors.white,
-                                            ),
-                                          ),
-                                          SizedBox(
-                                            width: 5,
-                                          ),
-                                          Icon(
-                                            Icons.close,
-                                            color: Colors.white,
-                                            size: 19,
-                                          ),
-                                        ],
-                                      ),
+                            if (showHeader)
+                              Row(
+                                crossAxisAlignment:
+                                CrossAxisAlignment.center,
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Container(
+                                    margin: EdgeInsets.symmetric(vertical: 8),
+                                    padding: EdgeInsets.symmetric(
+                                        horizontal: 15, vertical: 6),
+                                    child: text(
+                                      text: date,
+                                      color: Colors.black54,
+                                      size: 9,
+                                      fontWeight: FontWeight.w300,
                                     ),
                                   ),
-                                Card(
-                                  color: Colors.white,
-                                  shape: RoundedRectangleBorder(
-                                    side: ringStatus
-                                        ? BorderSide(
-                                      color: Colors.redAccent,
-                                      width: 2,
-                                    )
-                                        : BorderSide(
-                                        color: Colors.transparent,
-                                        width: 0),
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  margin: const EdgeInsets.only(top: 0),
-                                  // Example: adds 8px margin around the card
-                                  child: Padding(
-                                    padding: EdgeInsets.all(15),
-                                    child: Column(
-                                      crossAxisAlignment:
-                                      CrossAxisAlignment.start,
-                                      children: [
-                                        Row(
-                                          mainAxisAlignment:
-                                          MainAxisAlignment.spaceBetween,
-                                          children: [
-                                            text(
-                                              text: data['h1'] ?? 'No Title',
-                                              size: 12.sp,
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.black54,
-                                            ),
-                                            Row(
-                                              children: [
-                                                if (readStatus == "no")
-                                                  Padding(
-                                                    padding:
-                                                    const EdgeInsets.only(
-                                                        right: 18.0),
-                                                    child: Container(
-                                                      decoration:
-                                                      const BoxDecoration(
-                                                        color:
-                                                        Color(0xff4CAF50),
-                                                        shape: BoxShape.circle,
-                                                      ),
-                                                      padding:
-                                                      const EdgeInsets.all(
-                                                          3),
-                                                    ),
-                                                  ),
-                                                if (originalPath.contains("Highlights"))
-                                                  GestureDetector(
-                                                      onTap: () {
-                                                        haptic();
-                                                        TextEditingController
-                                                        _inputTextFieldController =
-                                                        new TextEditingController();
-                                                        showDialog(
-                                                            context: context,
-                                                            // Provide the context
-                                                            builder:
-                                                                (BuildContext
-                                                            context) {
-                                                              return AlertDialog(
-                                                                  contentPadding:
-                                                                  const EdgeInsets
-                                                                      .all(
-                                                                      0),
-                                                                  backgroundColor:
-                                                                  Color(
-                                                                      0xffF5F5F5),
-                                                                  content:
-                                                                  Container(
-                                                                      width: MediaQuery.of(context)
-                                                                          .size
-                                                                          .width,
-                                                                      height: 200
-                                                                          .sp,
-                                                                      child:
-                                                                      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                                                        AppBar(
-                                                                          title: Text(
-                                                                            "Enter First Row Value To Sort",
-                                                                            style: GoogleFonts.poppins(fontSize: 9, color: Colors.white, fontWeight: FontWeight.bold),
-                                                                          ),
-                                                                          backgroundColor: Colors.white,
-                                                                          iconTheme: IconThemeData(size: 20, color: Colors.white),
-                                                                          titleSpacing: 0,
-                                                                          shape: const RoundedRectangleBorder(borderRadius: BorderRadius.only(topLeft: Radius.circular(20), topRight: Radius.circular(20))),
-                                                                        ),
-                                                                        Container(
-                                                                          child: Padding(
-                                                                            padding: const EdgeInsets.all(20),
-                                                                            child: Container(
-                                                                              height: 50.sp,
-                                                                              alignment: Alignment.centerLeft,
-                                                                              decoration: BoxDecoration(borderRadius: BorderRadius.circular(20), color: Colors.white),
-                                                                              child: TextField(
-                                                                                controller: _inputTextFieldController,
-                                                                                style: GoogleFonts.poppins(
-                                                                                  fontWeight: FontWeight.bold,
-                                                                                  color: Colors.black45,
-                                                                                  fontSize: 12.sp,
-                                                                                ),
-                                                                                decoration: InputDecoration(labelText: 'i.e Age 6 or modoo.blog or price 10', border: InputBorder.none, labelStyle: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: Colors.black45, fontSize: 8.sp), prefixIcon: Icon(Icons.keyboard), prefixIconColor: Color(0xffB71C1C)),
-                                                                              ),
-                                                                            ),
-                                                                          ),
-                                                                        ),
-                                                                        Padding(
-                                                                          padding: const EdgeInsets.only(right: 20),
-                                                                          child: Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-                                                                            Container(
-                                                                              decoration: const BoxDecoration(
-                                                                                color: Color(0xffE7E7E7),
-                                                                                borderRadius: BorderRadius.all(Radius.circular(10)),
-                                                                              ),
-                                                                              child: Padding(
-                                                                                padding: const EdgeInsets.all(10),
-                                                                                child: Text("Sort", style: GoogleFonts.poppins(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 10)),
-                                                                              ),
-                                                                            ),
-                                                                          ]),
-                                                                        ),
-                                                                      ])));
-                                                            });
-                                                      },
-                                                      child: const Icon(
-                                                        Icons
-                                                            .compare_arrows_outlined,
-                                                        size: 18,
-                                                      ))
-                                              ],
-                                            )
-                                          ],
-                                        ),
-                                        SizedBox(height: 5.h),
-                                        // h2, h3, ... as bubble-like items
-                                        if (originalPath.contains("Highlights"))
-                                          Table(
-                                            columnWidths: const {
-                                              0: FixedColumnWidth(80),
-                                              1: FlexColumnWidth(),
-                                              2: FixedColumnWidth(80),
-                                            },
-                                            children: data.entries
-                                                .where((entry) =>
-                                            entry.key != 'h1')
-                                                .map(
-                                                  (entry) {
-                                                List<String> items = entry.value
-                                                    .toString()
-                                                    .split('|')
-                                                    .map((e) => e.trim())
-                                                    .toList();
-
-                                                // Ensure the list has exactly 3 items
-                                                if (items.length < 3) {
-                                                  items.addAll(List.filled(
-                                                      3 - items.length, ''));
-                                                } else if (items.length > 3) {
-                                                  items = items.sublist(0, 3);
-                                                }
-
-                                                return TableRow(
-                                                  children: items
-                                                      .map(
-                                                        (item) => Padding(
-                                                      padding:
-                                                      const EdgeInsets
-                                                          .all(3),
-                                                      child: Container(
-                                                        padding: EdgeInsets
-                                                            .symmetric(
-                                                            vertical:
-                                                            6.h,
-                                                            horizontal:
-                                                            10.w),
-                                                        decoration:
-                                                        BoxDecoration(
-                                                          color:
-                                                          Colors.white,
-                                                          borderRadius:
-                                                          BorderRadius
-                                                              .circular(
-                                                              8),
-                                                          boxShadow: [
-                                                            BoxShadow(
-                                                              color: Colors
-                                                                  .grey
-                                                                  .shade300,
-                                                              blurRadius:
-                                                              0.5,
-                                                            ),
-                                                          ],
-                                                        ),
-                                                        alignment: Alignment
-                                                            .center,
-                                                        child: TextScroll(
-                                                          item,
-                                                          velocity: Velocity(
-                                                              pixelsPerSecond:
-                                                              Offset(10,
-                                                                  10)),
-                                                          style: GoogleFonts.poppins(
-                                                              fontSize:
-                                                              8.sp,
-                                                              color: Color(
-                                                                  0xff717171),
-                                                              fontWeight:
-                                                              FontWeight
-                                                                  .bold),
-                                                        ),
-                                                      ),
-                                                    ),
-                                                  )
-                                                      .toList(),
-                                                );
-                                              },
-                                            ).toList(),
-                                          ),
-                                        if (!originalPath
-                                            .contains("Highlights")) ...[
-                                          Padding(
-                                            padding: EdgeInsets.symmetric(
-                                                vertical: 5.h),
-                                            child: Wrap(
-                                              spacing: 8.w,
-                                              runSpacing: 8.h,
-                                              children: [
-                                                ...[
-                                                  data['h2'],
-                                                  data['h3'],
-                                                  data['h4'],
-                                                  data['h5'],
-                                                  data['h6'],
-                                                  data['h7'],
-                                                  data['h8'],
-                                                  data['h9'],
-                                                  data['h10'],
-                                                  // Add more fields if needed
-                                                ]
-                                                    .where((value) =>
-                                                value != null)
-                                                    .join(' | ')
-                                                    .split('|')
-                                                    .map(
-                                                      (item) => Container(
-                                                    padding: EdgeInsets
-                                                        .symmetric(
-                                                        vertical: 6.h,
-                                                        horizontal:
-                                                        10.w),
-                                                    decoration:
-                                                    BoxDecoration(
-                                                      color: Colors.white,
-                                                      borderRadius:
-                                                      BorderRadius
-                                                          .circular(8),
-                                                      boxShadow: [
-                                                        BoxShadow(
-                                                            color: Colors.black12,
-                                                            blurRadius: 3,
-                                                            blurStyle: BlurStyle.outer
-                                                        ),
-                                                      ],
-                                                    ),
-                                                    child: text(
-                                                        text: item.trim(),
-                                                        size: 8.sp,
-                                                        color: Color(
-                                                            0xff717171),
-                                                        fontWeight:
-                                                        FontWeight
-                                                            .bold),
-                                                  ),
-                                                )
-                                                    .toList(),
-                                              ],
-                                            ),
-                                          )
-                                        ],
-
-                                        // Buttons with icons
-                                        SizedBox(
-                                          height: 10,
-                                        ),
-                                        if (buttons != null)
-                                          Wrap(
-                                            alignment: WrapAlignment.start,
-                                            runSpacing: 5,
-                                            children: buttons.map((buttonData) {
-                                              final button =
-                                              buttonData.values.first
-                                              as Map<dynamic, dynamic>;
-                                              final buttonText =
-                                              button['button_text']
-                                              as String;
-
-                                              return SizedBox(
-                                                width: 73,
-                                                child: Padding(
-                                                  padding:
-                                                  const EdgeInsets.all(5),
-                                                  child: Column(
-                                                    children: [
-                                                        Column(
-                                                          children: [
-                                                            ColorFiltered(
-                                                              colorFilter: ColorFilter.mode(
-                                                                  Color(
-                                                                      0xff717171),
-                                                                  BlendMode
-                                                                      .srcIn),
-                                                              child: getIconForButton(
-                                                                  actionDoneList.toString().contains("Watch") &&
-                                                                      buttonText.contains("Watch")
-                                                                      ? "remove watch"
-                                                                      : buttonText,
-                                                                  18),
-                                                            ),
-                                                            SizedBox(
-                                                                height: 10),
-                                                            text(
-                                                              text: actionDoneList
-                                                                  .toString()
-                                                                  .contains(
-                                                                  "Watch") &&
-                                                                  buttonText
-                                                                      .contains("Watch")
-                                                                  ? "Remove watch"
-                                                                  : buttonText,
-                                                              color: Color(
-                                                                  0xff717171),
-                                                              fontWeight:
-                                                              FontWeight
-                                                                  .bold,
-                                                              size: 7.sp,
-                                                            ),
-                                                          ],
-                                                        ),
-                                                    ],
-                                                  ),
-                                                ),
-                                              );
-                                            }).toList(),
-                                          ),
-                                        // Compact datetime
-                                        Row(
-                                          mainAxisAlignment:
-                                          MainAxisAlignment.end,
-                                          children: [
-                                            text(
-                                              text: formatToIST(
-                                                  auctionItem['datetime_id']),
-                                              size: 8,
-                                              color: Colors.black54,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-
-                                            FutureBuilder(
-                                                future: DbAccountHelper.isStarred(
-                                                    "account~user~details",
-                                                    GlobalProviders.userId,
-                                                    originalPath,
-                                                    auctionItem['datetime_id']),
-                                                builder: (context, snapshot) {
-                                                  if (snapshot.hasError) {
-                                                    return Text(
-                                                        'Error: ${snapshot.error}');
-                                                  } else {
-                                                    bool isStarred =
-                                                        snapshot.data ?? false;
-
-                                                    return buildStarToggleButton(
-                                                        isStarred: isStarred,
-                                                        onStarredClicked: () {},
-                                                        onNotStarredClicked:
-                                                            ()  {}
-                                                    );
-                                                  }
-                                                }),
-
-                                          ],
-                                        ),
-
-
-
-                                        FutureBuilder(
-                                          future: Future.delayed(
-                                              Duration(seconds: 5), () => true),
-                                          builder: (context, snapshot) {
-                                            if (!snapshot.hasData) {
-                                              return Padding(
-                                                padding: const EdgeInsets.only(
-                                                    left: 8.0),
-                                                child: text(
-                                                    text: 'Hashtags loading...',
-                                                    size: 8,
-                                                    color: Colors.black54,
-                                                    fontWeight:
-                                                    FontWeight.bold),
-                                              );
-                                            }
-                                            return createHashtagAndNotesInputWidget(
-                                              initialHashtags:(auctionItem['hashtags'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [],
-                                              initialNotes: (auctionItem['notes'] as List?)
-                                                  ?.map((e) => (e as Map?)?.map(
-                                                    (k, v) => MapEntry(k.toString(), v.toString()),
-                                              ) ?? {})
-                                                  .toList() ?? []
-                                              ,
-                                              // Pass the item's notes
-                                              notesAuthorName:
-                                              GlobalProviders.userId,
-                                              onHashtagsChanged: (newHashtags) {},
-                                              onNotesChanged: (newNotes) {
-                                              },
-                                            );
-                                          },
-                                        ),
-
-                                        // if (actionDoneList != null)
-                                        //   Padding(
-                                        //     padding:
-                                        //         const EdgeInsets.only(top: 8.0),
-                                        //     child: Wrap(
-                                        //         alignment: WrapAlignment.start,
-                                        //         spacing: 5,
-                                        //         runSpacing: 5,
-                                        //         children: (actionDoneList as List<dynamic>)
-                                        //             .map<Widget>((actionDone) {
-                                        //           return Container(
-                                        //             width: 70.sp,
-                                        //             decoration: BoxDecoration(
-                                        //               color: Colors.white,
-                                        //               boxShadow: [
-                                        //                 BoxShadow(
-                                        //                   color: Colors
-                                        //                       .grey.shade300,
-                                        //                   blurRadius: 0.5,
-                                        //                 )
-                                        //               ],
-                                        //               borderRadius:
-                                        //                   BorderRadius.only(
-                                        //                       topLeft: Radius
-                                        //                           .circular(10),
-                                        //                       bottomRight:
-                                        //                           Radius
-                                        //                               .circular(
-                                        //                                   10)),
-                                        //             ),
-                                        //             padding: EdgeInsets.all(10),
-                                        //             alignment: Alignment.center,
-                                        //             child: text(
-                                        //                 text: actionDone
-                                        //                     .toString(),
-                                        //                 size: 7.sp,
-                                        //                 color:
-                                        //                     Colors.black54,
-                                        //                 fontWeight:
-                                        //                     FontWeight.w400),
-                                        //           );
-                                        //         }).toList()),
-                                        //   ),
-                                        // Divider
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
+                                ],
+                              ),
+                            AbsorbPointer(child: DocumentPreviewCard(data: auctionItem,path:originalPath,)),
                           ],
                         ),
                         onTap: () async {
